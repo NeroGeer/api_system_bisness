@@ -2,13 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from typing import Annotated
 
-from src.core.scheme.scheme_user.schemas_user import CreateUserScheme, UpdateUserScheme, LoginUserScheme, OutCreateUserScheme
-from src.core.scheme.scheme_team.schemas_team import InviteTeamSchema
-from src.core.jwt_hash import jwt_auth as jwt, hash_password as hsp, cookie, jwt_token
-from src.core.models.model_user.models import User
+from src.scheme.schemas_user import CreateUserScheme, UpdateUserScheme, LoginUserScheme, OutCreateUserScheme
+from src.scheme.schemas_team import InviteTeamSchema
+
+from src.core.security.refresh_token import create_refresh_token
+from src.repositories.refresh_token_repo import refresh_token_create_by_bd, delete_refresh_token
+from src.core.security import dependencies as jwt, hash_password as hsp, cookie, jwt_token
+from src.models.model_user import User
 from src.database.database import SessionDep
 from src.logger.logger import logger
-from src.route.crud import crud_user as crud_u
+from src.repositories.crud import crud_user as crud_u
 
 route_user = APIRouter(
     prefix="/api",
@@ -21,7 +24,8 @@ async def get_user_me(user: Annotated[User, Depends(jwt.get_current_user)]):
     return user
 
 
-@route_user.post("/users/register", status_code=201,tags=["Create new user"], response_model=OutCreateUserScheme)
+@route_user.post("/users/register", status_code=201,
+                 tags=["Create new user"], response_model=OutCreateUserScheme)
 async def create_user(user: CreateUserScheme, session: SessionDep):
     logger.info(f"Creating new user with name: {user.name}")
     new_user = await crud_u.create_user(session=session, user_create=user)
@@ -37,8 +41,10 @@ async def user_login(user: CreateUserScheme, response: Response, session: Sessio
         raise HTTPException(403, detail="Invalid password or email")
 
     access_token = jwt_token.create_token({"sub": str(result.id)})
-    refresh_token = jwt_token.create_refresh_token()
-    await jwt_token.refresh_token_create_by_bd(session=session, token=refresh_token, current_user=result)
+    refresh_token = create_refresh_token()
+    await refresh_token_create_by_bd(session=session,
+                                     token=refresh_token,
+                                     current_user=result)
 
     cookie.set_refresh_cookie(response, refresh_token)
 
@@ -76,8 +82,8 @@ async def put_user_me(
 
 @route_user.delete("/users/me", status_code=204, tags=["Delete User"])
 async def delete_user_me(
-    user: Annotated[User, Depends(jwt.get_current_user)],
-    session: SessionDep
+        user: Annotated[User, Depends(jwt.get_current_user)],
+        session: SessionDep
 ):
     await crud_u.delete_user(session=session, current_user=user)
     return {"message": "User deleted successfully"}
@@ -85,15 +91,13 @@ async def delete_user_me(
 
 @route_user.post("/logout", tags=['Logout user'], status_code=200)
 async def logout(
-    request: Request,
-    response: Response,
-    session: SessionDep
+        request: Request,
+        response: Response,
+        session: SessionDep
 ):
     refresh_token = request.cookies.get("refresh_token")
     if refresh_token:
-        await jwt_token.delete_refresh_token(session, refresh_token)
+        await delete_refresh_token(session, refresh_token)
 
     cookie.delete_refresh_cookie(response)
     return {"message": "Logged out"}
-
-

@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends
 from typing import Annotated
 
 from src.database.database import SessionDep, RedisDep
-from src.route.crud import crud_comment as c_ct
-from src.core.models.model_user.models import User
-from src.core.scheme.scheme_task.schemas_task import CommentSchema, CommentCreateSchema
-from src.core.jwt_hash import jwt_auth as jwt
+from src.repositories.crud import crud_comment as c_ct
+from src.models.model_user import User
+from src.scheme.schemas_task import CommentSchema, CommentCreateSchema
+from src.core.security import dependencies as jwt
 
 route_comment = APIRouter(
     prefix="/api/teams/{team_id}/tasks/{task_id}/comments",
@@ -69,4 +69,3 @@ async def delete_comment_by_id(
     return await c_ct.delete_comments_by_id(current_user=current_user,
                                             team_id=team_id, task_id=task_id, comment_id=comment_id,
                                             redis=redis, session=session)
-

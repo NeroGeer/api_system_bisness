@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends
 from typing import Annotated
 
 from src.database.database import SessionDep
-from src.route.crud import crud_team as c_te
-from src.core.models.model_user.models import User
-from src.core.scheme.scheme_user.schemas_user import UserRole
-from src.core.scheme.scheme_team.schemas_team import UpdateTeamMemberRoleSchema, TeamResponseSchema, \
+from src.repositories.crud import crud_team as c_te
+from src.models.model_user import User
+from src.scheme.schemas_user import UserRole
+from src.scheme.schemas_team import UpdateTeamMemberRoleSchema, TeamResponseSchema, \
     AddTeamMemberSchema, TeamMemberResponseSchema
-from src.core.jwt_hash.jwt_auth import require_role, require_team_manager_or_admin
+from src.services.team_service import require_team_manager_or_admin
+from src.core.security.rbac import require_role
 
 route_team = APIRouter(
     prefix="/api/teams",

@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, Query
 from typing import Annotated
 
 from src.database.database import SessionDep
-from src.route.crud import crud_meeting as c_me
-from src.core.models.model_user.models import User
-from src.core.scheme.scheme_meeting.schemas_meeting import MeetingParticipantsDeleteSchema, MeetingOutSchema, \
+from src.repositories.crud import crud_meeting as c_me
+from src.models.model_user import User
+from src.scheme.schemas_meeting import MeetingParticipantsDeleteSchema, MeetingOutSchema, \
     MeetingCreateSchema, MeetingUpdateSchema
-from src.core.jwt_hash import jwt_auth as jwt
+from src.core.security import dependencies as jwt
 
 route_meeting = APIRouter(
     prefix="/api/teams/{team_id}/meeting",

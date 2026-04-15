@@ -1,7 +1,8 @@
 from typing import Dict
 
-from pydantic import BaseModel, PostgresDsn, ValidationError
+from pydantic import BaseModel, PostgresDsn, ValidationError, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 
 class DatabaseConfig(BaseModel):
@@ -36,13 +37,45 @@ class DatabaseConfig(BaseModel):
     echo_pool: bool = False
     pool_size: int = 50
     max_overflow: int = 10
-    naming_convention: Dict[str, str] = {
+    naming_convention: Dict[str, str] = Field(default_factory=lambda: {
         "ix": "ix_%(column_0_label)s",
         "uq": "uq_%(table_name)s_%(column_0_name)s",
         "ck": "ck_%(table_name)s_%(constraint_name)s",
         "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
         "pk": "pk_%(table_name)s"
-    }
+    })
+
+
+class JWTConfig(BaseModel):
+    secret_key: str
+    algorithm: str
+    access_expire_min: int
+    refresh_expire_days: int
+
+
+class RedisConfig(BaseModel):
+    url: str | None = None
+    port: int | None = None
+
+
+class AppConfig(BaseModel):
+    base_user_role_name: str
+    default_role_id: int
+
+    log_level: str = "INFO"
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def normalize_log_level(cls, v):
+        return v.upper()
+
+    static_folder: str = "/usr/share/nginx/static"
+
+    @property
+    def images_folder(self) -> str:
+        return os.path.join(self.static_folder, "images")
+
+    allowed_extensions: set[str] = {"png", "jpg", "jpeg", "gif"}
 
 
 class Settings(BaseSettings):
@@ -66,7 +99,12 @@ class Settings(BaseSettings):
         env_prefix="APP_CONFIG__"
     )
     db: DatabaseConfig
+    redis: RedisConfig = RedisConfig()
+    jwt: JWTConfig
+    app: AppConfig
 
 
-settings = Settings()
-
+try:
+    settings = Settings()
+except ValidationError as e:
+    raise RuntimeError(f"Invalid configuration: {e}")
