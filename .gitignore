@@ -1,0 +1,65 @@
+# =====================
+# Python cache
+# =====================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =====================
+# Virtual environments
+# =====================
+.venv/
+venv/
+env/
+ENV/
+
+# =====================
+# Environment variables
+# =====================
+.env
+.envrc
+
+# =====================
+# IDE / editors
+# =====================
+.idea/
+.vscode/
+
+# =====================
+# Logs
+# =====================
+*.log
+
+# =====================
+# Databases (local dev)
+# =====================
+*.sqlite3
+*.db
+
+# =====================
+# Testing / coverage
+# =====================
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# =====================
+# Type checkers
+# =====================
+.mypy_cache/
+.pyre/
+.pytype/
+
+# =====================
+# Docker
+# =====================
+*.pid
+*.log
+docker-compose.override.yml
+
+# =====================
+# OS files
+# =====================
+.DS_Store
+Thumbs.db
