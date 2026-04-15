@@ -5,11 +5,10 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from redis.asyncio import Redis
 from enum import Enum
 
-from src.core.config import DB_URL, REDIS_URL, REDIS_PORT
 from src.logger.logger import logger
+from src.database.config import settings
 
-
-DATABASE_URL = DB_URL #"sqlite+aiosqlite:///./app.py.db"
+DATABASE_URL = settings.db.url  #"sqlite+aiosqlite:///./app.py.db"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 logger.info(f"Async database engine created for {DATABASE_URL}")
@@ -27,15 +26,14 @@ async def get_session() -> AsyncSession:
 
 SessionDep: Type[AsyncSession] = Annotated[AsyncSession, Depends(get_session)]
 
-
-redis_client = Redis(host=REDIS_URL, port=REDIS_PORT, decode_responses=True)
+redis_client = Redis(host=settings.redis.url, port=settings.redis.port, decode_responses=True)
 
 
 async def get_redis_client() -> Redis:
     yield redis_client
 
 
-RedisDep: Type[Redis] = Annotated[Redis, Depends(get_redis)]
+RedisDep: Type[Redis] = Annotated[Redis, Depends(get_redis_client)]
 
 
 class RedisKeys(str, Enum):
@@ -43,4 +41,3 @@ class RedisKeys(str, Enum):
 
     def format(self, **kwargs):
         return self.value.format(**kwargs)
-

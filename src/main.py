@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
-from src.core.models import Base
+from src.models.model_base import Base
 from src.database.database import engine, redis_client
 from src.route.route_user import route_user
 from src.route.route_tweet import route_tweets

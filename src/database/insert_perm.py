@@ -1,11 +1,11 @@
 from sqlalchemy import insert
-import src.core.models.model_user.models as md
-from src.core.config import BASE_USER_ROLE_NAME
+import src.models.model_user as md
+from src.database.config import settings
 
 
 roles_data = [
     {"id": 1, "name": "admin"},
-    {"id": 2, "name": BASE_USER_ROLE_NAME},
+    {"id": 2, "name": settings.app.base_user_role_name},
 ]
 
 permissions_data = [

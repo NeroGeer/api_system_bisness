@@ -4,11 +4,11 @@ from datetime import date
 from typing import Annotated, List
 
 from src.database.database import SessionDep
-from src.route.crud import crud_task as c_t
-from src.core.models.model_user.models import User
-from src.core.scheme.scheme_task.schemas_task import OutAVGGradeTaskSchema, UpdateTaskStatusSchema, UpdateTaskSchema, TaskCreateSchema, \
+from src.repositories.crud import crud_task as c_t
+from src.models.model_user import User
+from src.scheme.schemas_task import OutAVGGradeTaskSchema, UpdateTaskStatusSchema, UpdateTaskSchema, TaskCreateSchema, \
     TaskSchema
-from src.core.jwt_hash import jwt_auth as jwt
+from src.core.security import dependencies as jwt
 
 route_task = APIRouter(
     prefix="/api/teams/{team_id}/tasks",
@@ -47,8 +47,8 @@ async def get_task_by_id(team_id: int, session: SessionDep,
 
 @route_task.get("", status_code=200, response_model=OutAVGGradeTaskSchema, tags=["Get avg grade tasks by user id"])
 async def get_avg_task_grade_by_user_id(team_id: int, session: SessionDep,
-                       current_user: Annotated[User, Depends(jwt.get_current_user)],
-                       start_date: date, end_date: date):
+                                        current_user: Annotated[User, Depends(jwt.get_current_user)],
+                                        start_date: date, end_date: date):
     result = await c_t.get_avg_grade_task_make_date_range(session=session,
                                                           team_id=team_id,
                                                           current_user=current_user,
