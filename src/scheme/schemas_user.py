@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional
 from enum import Enum
 
@@ -24,7 +24,28 @@ class BaseUserSchema(BaseModel):
 class CreateUserScheme(BaseModel):
 
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8, max_length=72)
+
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain a lowercase letter")
+
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain an uppercase letter")
+
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain a digit")
+
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>/?`~" for c in v):
+            raise ValueError('Password must contain a special symbol')
+
+        return v
 
 
 class OutCreateUserScheme(BaseUserSchema):
@@ -44,8 +65,3 @@ class LoginUserScheme(BaseUserSchema):
 class UpdateUserScheme(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
-
-
-class UserShortSchema(BaseModel):
-    id: int
-    email: str

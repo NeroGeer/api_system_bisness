@@ -13,11 +13,11 @@ from src.core.security.rbac import require_role
 
 route_team = APIRouter(
     prefix="/api/teams",
-    tags=["teams"],
+    tags=["Teams"],
 )
 
 
-@route_team.get("/{team_id}/members", status_code=200, response_model=TeamResponseSchema, tags=["Get Members team"])
+@route_team.get("/{team_id}/members", status_code=200, response_model=TeamResponseSchema)
 async def get_member_team(session: SessionDep,
                           team_id: int,
                           current_user: Annotated[User, Depends(require_team_manager_or_admin())],

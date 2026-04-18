@@ -7,31 +7,32 @@ import os
 
 class DatabaseConfig(BaseModel):
     """
-    Configuration schema for the PostgreSQL database connection.
+    PostgreSQL database configuration settings.
+
+    This class defines all parameters required to configure SQLAlchemy
+    database engine and connection pool behavior.
 
     Attributes:
         url (PostgresDsn):
-            Full PostgreSQL connection string (DSN).
-            Example: "postgresql+psycopg2://user:password@localhost:5432/dbname".
-        echo (bool):
-            Enables SQLAlchemy engine logging. Default: False.
-        echo_pool (bool):
-            Enables logging for connection pool checkouts/checkins. Default: False.
-        pool_size (int):
-            Size of the connection pool. Default: 50.
-        max_overflow (int):
-            Maximum number of connections to allow above pool_size. Default: 10.
-        naming_convention (Dict[str, str]):
-            SQLAlchemy naming convention for constraints and indexes.
-            Ensures consistent schema generation and migrations.
+            PostgreSQL DSN connection string.
+            Example: postgresql+psycopg2://user:password@localhost:5432/db
 
-            Default mapping:
-                - Index: ix_%(column_0_label)s
-                - Unique constraint: uq_%(table_name)s_%(column_0_name)s
-                - Check constraint: ck_%(table_name)s_%(constraint_name)s
-                - Foreign key: fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s
-                - Primary key: pk_%(table_name)s
+        echo (bool):
+            Enables SQL query logging.
+
+        echo_pool (bool):
+            Enables connection pool logging.
+
+        pool_size (int):
+            Number of persistent connections in the pool.
+
+        max_overflow (int):
+            Maximum additional connections beyond pool_size.
+
+        naming_convention (Dict[str, str]):
+            SQLAlchemy constraint naming rules for consistent schema generation.
     """
+
     url: PostgresDsn
     echo: bool = False
     echo_pool: bool = False
@@ -47,6 +48,15 @@ class DatabaseConfig(BaseModel):
 
 
 class JWTConfig(BaseModel):
+    """
+    JWT authentication configuration.
+
+    Attributes:
+        secret_key (str): Secret key used to sign tokens.
+        algorithm (str): JWT signing algorithm (e.g. HS256).
+        access_expire_min (int): Access token lifetime in minutes.
+        refresh_expire_days (int): Refresh token lifetime in days.
+    """
     secret_key: str
     algorithm: str
     access_expire_min: int
@@ -54,11 +64,30 @@ class JWTConfig(BaseModel):
 
 
 class RedisConfig(BaseModel):
+    """
+    Redis configuration settings.
+
+    Attributes:
+        url (str | None): Redis connection URL.
+        port (int | None): Redis port (optional if URL is used).
+    """
     url: str | None = None
     port: int | None = None
 
 
 class AppConfig(BaseModel):
+    """
+    General application configuration.
+
+    Attributes:
+        base_user_role_name (str): Default role name for new users.
+        default_role_id (int): Default role ID.
+        log_level (str): Application logging level.
+
+        static_folder (str): Base folder for static files.
+
+        allowed_extensions (set[str]): Allowed file upload extensions.
+    """
     base_user_role_name: str
     default_role_id: int
 
@@ -80,17 +109,17 @@ class AppConfig(BaseModel):
 
 class Settings(BaseSettings):
     """
-    Application settings model.
+    Global application settings loaded from environment variables.
 
-    Config:
-        - Reads environment variables from `.env` and `.test.env` files in `src/`.
-        - Case insensitive.
-        - Supports nested environment variables using "__" as a delimiter.
-        - All environment variables must be prefixed with "APP_CONFIG__".
+    Environment configuration:
+        - Reads from `.env` and `.test.env` files located in `src/`
+        - Uses prefix: APP_CONFIG__
+        - Supports nested structures using `__` delimiter
+        - Case-insensitive keys
 
-    Attributes:
-        db (DatabaseConfig):
-            Database configuration settings object.
+    Example:
+        APP_CONFIG__DB__URL=postgresql+psycopg2://...
+        APP_CONFIG__JWT__SECRET_KEY=...
     """
     model_config = SettingsConfigDict(
         env_file=("src/.env", "src/.test.env"),

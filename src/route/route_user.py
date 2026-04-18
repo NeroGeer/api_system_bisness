@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.security import OAuth2PasswordRequestForm
 
 from typing import Annotated
 
@@ -14,18 +15,17 @@ from src.logger.logger import logger
 from src.repositories.crud import crud_user as crud_u
 
 route_user = APIRouter(
-    prefix="/api",
-    tags=["user"],
+    prefix="/api/users",
+    tags=["User"],
 )
 
 
-@route_user.get("/users/me", tags=["Get User"], response_model=LoginUserScheme, status_code=200)
+@route_user.get("/me", response_model=LoginUserScheme, status_code=200)
 async def get_user_me(user: Annotated[User, Depends(jwt.get_current_user)]):
     return user
 
 
-@route_user.post("/users/register", status_code=201,
-                 tags=["Create new user"], response_model=OutCreateUserScheme)
+@route_user.post("/register", status_code=201, response_model=OutCreateUserScheme)
 async def create_user(user: CreateUserScheme, session: SessionDep):
     logger.info(f"Creating new user with name: {user.name}")
     new_user = await crud_u.create_user(session=session, user_create=user)
@@ -33,20 +33,21 @@ async def create_user(user: CreateUserScheme, session: SessionDep):
     return new_user
 
 
-@route_user.post('/users/login', status_code=200, tags=["User login"])
-async def user_login(user: CreateUserScheme, response: Response, session: SessionDep):
-    logger.info(f"User login with name: {user.name}")
-    result = await crud_u.get_user_by_email(session=session, data=user)
-    if not result or not hsp.verify_password(user.password, result.hashed_password):
+@route_user.post('/login', status_code=200)
+async def user_login(response: Response, session: SessionDep, form: OAuth2PasswordRequestForm = Depends()):
+    logger.info(f"User login with name: {form.username}")
+    result = await crud_u.get_user_by_email(session=session, email=form.username)
+    if not result or not hsp.verify_password(form.password, result.hashed_password):
         raise HTTPException(403, detail="Invalid password or email")
 
-    access_token = jwt_token.create_token({"sub": str(result.id)})
+    access_token = str(await jwt_token.create_token({"sub": str(result.id)}))
     refresh_token = create_refresh_token()
     await refresh_token_create_by_bd(session=session,
                                      token=refresh_token,
                                      current_user=result)
 
     cookie.set_refresh_cookie(response, refresh_token)
+    cookie.set_access_cookie(response, access_token)
 
     return {
         "access_token": access_token,
@@ -55,7 +56,7 @@ async def user_login(user: CreateUserScheme, response: Response, session: Sessio
     }
 
 
-@route_user.post("/users/join-team", status_code=201, tags=["Join Team"])
+@route_user.post("/join-team", status_code=201)
 async def user_join_team(
         code: InviteTeamSchema,
         user: Annotated[User, Depends(jwt.get_current_user)],
@@ -70,7 +71,7 @@ async def user_join_team(
     return {"message": f"Joined team {result.team.name}"}
 
 
-@route_user.patch("/users/me", status_code=200, tags=["Update User"], response_model=LoginUserScheme)
+@route_user.patch("/me", status_code=200, response_model=LoginUserScheme)
 async def put_user_me(
         update_data: UpdateUserScheme,
         user: Annotated[User, Depends(jwt.get_current_user)],
@@ -80,7 +81,7 @@ async def put_user_me(
     return result
 
 
-@route_user.delete("/users/me", status_code=204, tags=["Delete User"])
+@route_user.delete("/me", status_code=204)
 async def delete_user_me(
         user: Annotated[User, Depends(jwt.get_current_user)],
         session: SessionDep
@@ -89,7 +90,7 @@ async def delete_user_me(
     return {"message": "User deleted successfully"}
 
 
-@route_user.post("/logout", tags=['Logout user'], status_code=200)
+@route_user.post("/logout", status_code=200)
 async def logout(
         request: Request,
         response: Response,

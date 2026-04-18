@@ -2,8 +2,6 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from enum import Enum
 
-from src.scheme.schemas_user import UserShortSchema
-
 
 class TeamRole(str, Enum):
     employee = "employee"
@@ -46,12 +44,17 @@ class InviteTeamSchema(BaseModel):
     invite_code: str
 
 
+class TeamUserShortSchema(BaseModel):
+    id: int
+    email: str
+
+
 class TeamMemberResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     role: str
-    user: UserShortSchema
+    user: TeamUserShortSchema
 
 
 class TeamResponseSchema(BaseModel):

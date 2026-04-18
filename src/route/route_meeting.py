@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from datetime import date
 from typing import Annotated
 
 from src.database.database import SessionDep
@@ -15,23 +16,24 @@ route_meeting = APIRouter(
 )
 
 
-@route_meeting.get("", status_code=200, response_model=list[MeetingOutSchema],
-                   tags=["Get all meeting"])
+@route_meeting.get("", status_code=200, response_model=list[MeetingOutSchema])
 async def get_meetings(
         team_id: int,
         current_user: Annotated[User, Depends(jwt.get_current_user)],
         session: SessionDep,
         only_my_meetings: bool = Query(False),
         participant_user_id: int | None = Query(None),
+        start_date: date | None = Query(None),
+        end_date: date | None = Query(None),
 ):
     return await c_me.get_meeting(current_user=current_user,
                                   team_id=team_id, session=session,
                                   only_my_meetings=only_my_meetings,
-                                  participant_user_id=participant_user_id)
+                                  participant_user_id=participant_user_id,
+                                  start_date=start_date, end_date=end_date)
 
 
-@route_meeting.get("/{meeting_id}", status_code=200, response_model=MeetingOutSchema,
-                   tags=["Get all meeting by id"])
+@route_meeting.get("/{meeting_id}", status_code=200, response_model=MeetingOutSchema)
 async def get_meeting_by_id(
         team_id: int,
         current_user: Annotated[User, Depends(jwt.get_current_user)],
@@ -39,14 +41,17 @@ async def get_meeting_by_id(
         meeting_id: int,
         only_my_meetings: bool = Query(False),
         participant_user_id: int | None = Query(None),
+        start_date: date | None = Query(None),
+        end_date: date | None = Query(None),
 ):
     return await c_me.get_meeting(current_user=current_user,
                                   team_id=team_id, session=session, meeting_id=meeting_id,
                                   only_my_meetings=only_my_meetings,
-                                  participant_user_id=participant_user_id)
+                                  participant_user_id=participant_user_id,
+                                  start_date=start_date, end_date=end_date)
 
 
-@route_meeting.post("", status_code=201, response_model=MeetingOutSchema, tags=["Add Meeting"])
+@route_meeting.post("", status_code=201, response_model=MeetingOutSchema)
 async def create_meeting(
         team_id: int,
         data: MeetingCreateSchema,
@@ -57,7 +62,7 @@ async def create_meeting(
                                      team_id=team_id, session=session)
 
 
-@route_meeting.put("/{meeting_id}", status_code=200, response_model=MeetingOutSchema, tags=["Update meeting"])
+@route_meeting.put("/{meeting_id}", status_code=200, response_model=MeetingOutSchema)
 async def update_meeting_by_id(
         team_id: int,
         meeting_id: int,
@@ -70,7 +75,7 @@ async def update_meeting_by_id(
                                      session=session)
 
 
-@route_meeting.delete("/{meeting_id}", status_code=204, tags=["Delete participant by id meeting"])
+@route_meeting.delete("/{meeting_id}", status_code=204)
 async def delete_participant_by_meeting_id(
         team_id: int,
         users_ids: MeetingParticipantsDeleteSchema,
@@ -83,7 +88,7 @@ async def delete_participant_by_meeting_id(
                                                  meeting_id=meeting_id, session=session)
 
 
-@route_meeting.delete("/{meeting_id}", status_code=204, tags=["Delete meeting by id"])
+@route_meeting.delete("/{meeting_id}", status_code=204)
 async def delete_meeting_by_id(
         team_id: int,
         meeting_id: int,

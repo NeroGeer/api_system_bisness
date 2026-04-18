@@ -8,7 +8,7 @@ from enum import Enum
 from src.logger.logger import logger
 from src.database.config import settings
 
-DATABASE_URL = settings.db.url  #"sqlite+aiosqlite:///./app.py.db"
+DATABASE_URL: str = str(settings.db.url)  #"sqlite+aiosqlite:///./app.py.db"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 logger.info(f"Async database engine created for {DATABASE_URL}")
@@ -18,6 +18,16 @@ logger.debug("Async session maker initialized")
 
 
 async def get_session() -> AsyncSession:
+    """
+    FastAPI dependency that provides an asynchronous SQLAlchemy session.
+
+    Yields:
+        AsyncSession: Active database session.
+
+    Notes:
+        - Session is automatically closed after request ends.
+        - Safe for use in FastAPI dependency injection system.
+    """
     async with async_session() as session:
         logger.debug("New database session opened")
         yield session
@@ -30,6 +40,16 @@ redis_client = Redis(host=settings.redis.url, port=settings.redis.port, decode_r
 
 
 async def get_redis_client() -> Redis:
+    """
+    FastAPI dependency that provides a Redis client instance.
+
+    Returns:
+        Redis: Shared async Redis client.
+
+    Notes:
+        - Uses a single global Redis connection.
+        - Suitable for high-performance caching and pub/sub usage.
+    """
     yield redis_client
 
 
@@ -37,7 +57,28 @@ RedisDep: Type[Redis] = Annotated[Redis, Depends(get_redis_client)]
 
 
 class RedisKeys(str, Enum):
+    """
+    Redis key templates used across the application.
+
+    Attributes:
+        TASK_COMMENTS:
+            Key pattern for storing comments of a specific task.
+            Requires `task_id` parameter.
+
+    Example:
+        RedisKeys.TASK_COMMENTS.format(task_id=123)
+        -> "task:123:comments"
+    """
     TASK_COMMENTS = "task:{task_id}:comments"
 
     def format(self, **kwargs):
+        """
+        Formats Redis key with dynamic parameters.
+
+        Args:
+            **kwargs: Values to replace placeholders in key template.
+
+        Returns:
+            str: Fully formatted Redis key.
+        """
         return self.value.format(**kwargs)

@@ -14,7 +14,7 @@ route_comment = APIRouter(
 )
 
 
-@route_comment.get("", status_code=200, response_model=list[CommentSchema], tags=["Get comment"])
+@route_comment.get("", status_code=200, response_model=list[CommentSchema])
 async def get_comment(
         team_id: int,
         task_id: int,
@@ -27,8 +27,7 @@ async def get_comment(
                                         redis=redis, session=session)
 
 
-@route_comment.post("", status_code=201, response_model=CommentSchema,
-                    tags=["Add comment"])
+@route_comment.post("", status_code=201, response_model=CommentSchema)
 async def add_comment(
         team_id: int,
         task_id: int,
@@ -42,7 +41,7 @@ async def add_comment(
                                         redis=redis, session=session)
 
 
-@route_comment.patch("/{comment_id}", status_code=200, response_model=CommentSchema, tags=["Update comment"])
+@route_comment.patch("/{comment_id}", status_code=200, response_model=CommentSchema)
 async def update_comment_by_id(
         team_id: int,
         task_id: int,
@@ -57,7 +56,7 @@ async def update_comment_by_id(
                                             redis=redis, session=session)
 
 
-@route_comment.delete("/{comment_id}", status_code=204, tags=["Delete comment"])
+@route_comment.delete("/{comment_id}", status_code=204)
 async def delete_comment_by_id(
         team_id: int,
         task_id: int,

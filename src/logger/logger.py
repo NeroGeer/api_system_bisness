@@ -11,9 +11,27 @@ LOG_LEVEL = settings.app.log_level
 
 
 def setup_logger(name: str = "app") -> logging.Logger:
+    """
+    Configures and returns a structured application logger.
+
+    This logger supports:
+        - Console output (INFO level)
+        - File logging with daily rotation (DEBUG level)
+        - Automatic log file rotation with retention
+
+    Args:
+        name (str): Name of the logger instance.
+
+    Returns:
+        logging.Logger: Configured logger instance.
+
+    Notes:
+        - Prevents duplicate handlers on re-import.
+        - Logs are stored in the `logs/` directory.
+        - Rotated logs are kept for 7 days.
+    """
     logger = logging.getLogger(name)
 
-    # защита от дублей при повторных импортах
     if logger.handlers:
         return logger
 
@@ -25,7 +43,6 @@ def setup_logger(name: str = "app") -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # file handler (daily rotation)
     file_handler = TimedRotatingFileHandler(
         filename=os.path.join(LOG_DIR, "app.log"),
         when="midnight",
@@ -36,7 +53,6 @@ def setup_logger(name: str = "app") -> logging.Logger:
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 
-    # console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
@@ -44,7 +60,6 @@ def setup_logger(name: str = "app") -> logging.Logger:
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-    # не дублировать логи через root logger
     logger.propagate = False
 
     return logger

@@ -19,6 +19,40 @@ async def require_admin_or_team_manager(
         check_executor: bool = False,
         task_id: int | None = None,
 ):
+    """
+       Permission guard for admin, team roles or task executor access.
+
+       This function verifies whether a user has permission to perform
+       actions inside a specific team context.
+
+       Logic:
+       - checks if team exists
+       - checks if user is admin
+       - checks if user has required team role
+       - optionally checks if user is task executor
+
+       Args:
+           session: Database session dependency.
+           current_user: Authenticated user.
+           team_id: Target team ID.
+           team_role: Allowed team roles (default: manager).
+           check_executor: Enable executor permission check.
+           task_id: Required if check_executor=True.
+
+       Returns:
+           PermissionResult:
+               Object containing:
+               - is_admin
+               - is_team_role
+               - is_executor
+
+       Raises:
+           HTTPException:
+               - 404 if team not found
+               - 422 if task_id missing when check_executor=True
+               - 403 if user has no required permissions
+       """
+
     team_exists = await session.scalar(
         select(exists().where(Team.id == team_id))
 

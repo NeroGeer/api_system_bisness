@@ -7,11 +7,21 @@ from src.core.security import hash_password as hsp
 from src.models.model_user import User, Role
 from src.models.model_team import Team, TeamMember
 from src.scheme.schemas_user import CreateUserScheme, UpdateUserScheme
-from src.scheme.schemas_team import InviteTeamSchema
+from src.scheme.schemas_team import InviteTeamSchema, TeamRole
 from src.logger.logger import logger
 
 
 async def get_user_by_id(session: SessionDep, user_id) -> User | None:
+    """
+    Fetch user by ID.
+
+    Args:
+        session: DB session
+        user_id: user identifier
+
+    Returns:
+        User | None
+    """
     logger.info(f"Fetching user by ID: {user_id}")
     stmt = select(User).where(User.id == user_id)
 
@@ -23,15 +33,25 @@ async def get_user_by_id(session: SessionDep, user_id) -> User | None:
     return result
 
 
-async def get_user_by_email(session: SessionDep, data) -> User | None:
-    logger.info(f"Fetching user by email: {data.email}")
-    stmt = select(User).where(User.email == data.email)
+async def get_user_by_email(session: SessionDep, email) -> User | None:
+    """
+    Fetch user by email.
+
+    Args:
+        session: DB session
+        email: user email
+
+    Returns:
+        User | None
+    """
+    logger.info(f"Fetching user by email: {email}")
+    stmt = select(User).where(User.email == email)
 
     result = await session.scalar(stmt)
     if result:
         logger.debug(f"User found: {result.id} - {result.email}")
     else:
-        logger.warning(f"No user found with email: {data.email}")
+        logger.warning(f"No user found with email: {email}")
     return result
 
 
@@ -64,6 +84,17 @@ async def create_user(session: SessionDep, user_create: CreateUserScheme) -> Use
 
 
 async def update_user(session: SessionDep, current_user: User, update_data: UpdateUserScheme) -> User:
+    """
+    Update current user data.
+
+    Args:
+        session: DB session
+        current_user: authenticated user
+        update_data: update payload
+
+    Returns:
+        User
+    """
     logger.info(f"Update User: {update_data.email}")
 
     data = update_data.model_dump(exclude_unset=True)
@@ -86,8 +117,17 @@ async def update_user(session: SessionDep, current_user: User, update_data: Upda
 
 
 async def delete_user(session: SessionDep, current_user: User) -> None:
+    """
+    Delete current user.
+
+    Args:
+        session: DB session
+        current_user: user to delete
+    """
+    logger.warning(f"Deleting user: id={current_user.id}")
     await session.delete(current_user)
     await session.commit()
+    logger.info(f"User deleted: id={current_user.id}")
 
 
 async def user_team_invite_by_code(
@@ -95,10 +135,28 @@ async def user_team_invite_by_code(
         invite_code: InviteTeamSchema,
         current_user: User
 ):
+    """
+    Join a team via invite code.
+
+    Args:
+        session: DB session
+        invite_code: invite schema
+        current_user: authenticated user
+
+    Returns:
+        Team
+    """
+
+    logger.info(
+        f"User joining team via invite code: user_id={current_user.id}"
+    )
     result = await session.execute(select(Team).where(Team.invite_code == invite_code))
     team = result.scalar_one_or_none()
 
     if not team:
+        logger.warning(
+            f"Invalid invite code used: user_id={current_user.id}"
+        )
         raise HTTPException(status_code=404, detail="Team not found")
 
     existing_member = await session.execute(
@@ -109,16 +167,22 @@ async def user_team_invite_by_code(
     )
 
     if existing_member.scalar_one_or_none():
+        logger.warning(
+            f"User already in team: user_id={current_user.id}, team_id={team.id}"
+        )
         raise HTTPException(status_code=204, detail="the member is on a team")
 
     team_member = TeamMember(
         user_id=current_user.id,
         team_id=team.id,
-        role='employee'
+        role=TeamRole.employee
     )
 
     session.add(team_member)
     await session.commit()
-    await session.refresh(current_user)
+
+    logger.info(
+        f"User joined team: user_id={current_user.id}, team_id={team.id}"
+    )
 
     return team

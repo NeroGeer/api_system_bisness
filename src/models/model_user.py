@@ -1,17 +1,28 @@
 from sqlalchemy import String, ForeignKey, Column, Table
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from src.models.model_base import Base
-from src.models.model_team import TeamMember
-from src.models.model_meeting import Meeting, MeetingParticipant
+
+
+if TYPE_CHECKING:
+    from src.models.model_meeting import Meeting, MeetingParticipant
+    from src.models.model_team import TeamMember
 
 from dataclasses import dataclass
 
 
 @dataclass
 class PermissionResult:
+    """
+    Result object representing evaluated permissions for a user.
+
+    Attributes:
+        is_admin (bool): Whether user has admin-level access.
+        is_team_role (bool): Whether user has team-based role access.
+        is_executor (bool): Whether user is an executor of a task/resource.
+    """
     is_admin: bool
     is_team_role: bool
     is_executor: bool
@@ -33,6 +44,40 @@ user_roles = Table(
 
 
 class User(Base):
+    """
+       Database model representing an application user.
+
+       Users can:
+           - Belong to multiple teams
+           - Have multiple roles (RBAC system)
+           - Participate in meetings
+           - Create meetings
+
+       Attributes:
+           id (int):
+               Primary key identifier.
+
+           email (str):
+               Unique user email used for authentication.
+
+           hashed_password (str):
+               Securely stored password hash.
+
+           is_active (bool):
+               Indicates whether user account is active.
+
+           team_memberships (List[TeamMember]):
+               Teams the user belongs to.
+
+           roles (List[Role]):
+               Assigned roles for RBAC permissions.
+
+           created_meetings (List[Meeting]):
+               Meetings created by the user.
+
+           meeting_participations (List[MeetingParticipant]):
+               Meetings where user is a participant.
+       """
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -64,6 +109,17 @@ class User(Base):
 
 
 class Role(Base):
+    """
+       Role model for RBAC (Role-Based Access Control).
+
+       Roles define a set of permissions that can be assigned to users.
+
+       Attributes:
+           id (int): Primary key.
+           name (str): Unique role name.
+           users (List[User]): Users assigned to this role.
+           permissions (List[Permission]): Permissions granted by this role.
+       """
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -92,6 +148,16 @@ class Role(Base):
 
 
 class Permission(Base):
+    """
+       Permission model for fine-grained access control.
+
+       Permissions are assigned to roles and define specific allowed actions.
+
+       Attributes:
+           id (int): Primary key.
+           name (str): Unique permission identifier.
+           roles (List[Role]): Roles that include this permission.
+       """
     __tablename__ = "permissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)

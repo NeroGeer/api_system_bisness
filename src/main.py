@@ -1,13 +1,21 @@
 #import uvicorn
 from fastapi import FastAPI
-from starlette.staticfiles import StaticFiles
+from sqladmin import Admin
+#from starlette.staticfiles import StaticFiles
 
+from src.admin.admin import setup_admin
+from src.admin.class_admin.auth_class import AdminAuth
 from src.models.model_base import Base
 from src.database.database import engine, redis_client
+from src.route.route_admin import route_admin
+from src.route.route_jwt import route_jwt
+from src.route.route_comment import route_comment
+from src.route.route_meeting import route_meeting
+from src.route.route_task import route_task
+from src.route.route_team import route_team
 from src.route.route_user import route_user
-from src.route.route_tweet import route_tweets
-from src.route.route_medias import route_medias
 from src.database.insert_perm import insert_rbac_data
+
 
 from contextlib import asynccontextmanager
 
@@ -40,12 +48,11 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
         await insert_rbac_data(conn)
-    yield
 
     try:
         await redis_client.ping()
     except Exception as e:
-        raise
+        print(e)
 
     yield
 
@@ -55,9 +62,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+admin = Admin(app=app, engine=engine, authentication_backend=AdminAuth())
+setup_admin(admin)
 
-app.mount("/images", StaticFiles(directory="/usr/share/nginx/static/images"), name="images")
+app.include_router(route_jwt)
+app.include_router(route_admin)
+app.include_router(route_user)
+app.include_router(route_team)
+app.include_router(route_meeting)
+app.include_router(route_task)
+app.include_router(route_comment)
 
+#app.mount("/images", StaticFiles(directory="/usr/share/nginx/static/images"), name="images")
 
 
 # if __name__ == '__main__':
