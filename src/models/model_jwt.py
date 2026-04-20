@@ -8,6 +8,10 @@ from src.models.model_base import Base
 
 class RefreshToken(Base):
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Database model for storing JWT refresh tokens.
 
     This table is used to persist refresh tokens for user sessions,

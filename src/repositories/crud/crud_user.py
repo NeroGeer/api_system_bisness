@@ -13,6 +13,10 @@ from src.scheme.schemas_user import CreateUserScheme, UpdateUserScheme
 
 async def get_user_by_id(session: SessionDep, user_id) -> User | None:
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Fetch user by ID.
 
     Args:

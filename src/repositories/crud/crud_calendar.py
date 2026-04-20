@@ -20,6 +20,9 @@ async def get_calendar(
     end_date: date | None = None,
 ):
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
     Retrieves calendar events (meetings and tasks) for a user within a date range.
 
     This function aggregates:

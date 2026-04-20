@@ -15,6 +15,10 @@ from src.scheme.schemas_team import (
 
 async def get_members_team(session: SessionDep, team_id: int):
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Returns all members of a team.
 
     Args:

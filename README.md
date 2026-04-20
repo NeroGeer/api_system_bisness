@@ -2,6 +2,13 @@
 
 Backend система управления командами, задачами, встречами и календарём с RBAC, JWT-аутентификацией и административной панелью SQLAdmin.
 
+##  Author
+
+- Name: NeroGeer  
+- GitHub: https://github.com/NeroGeer  
+- Email: nerogeerjob@gmail.com
+- License: MIT  
+
 ---
 
 ##  Основной стек

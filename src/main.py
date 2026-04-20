@@ -18,6 +18,7 @@ from src.route.route_task import route_task
 from src.route.route_team import route_team
 from src.route.route_user import route_user
 
+
 # from starlette.staticfiles import StaticFiles
 
 
@@ -61,7 +62,15 @@ async def lifespan(app: FastAPI):
     await redis_client.close()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan,
+              title="API System Business",
+              version="1.0.0",
+              contact={
+                  "name": "NeroGeer",
+                  "url": "https://github.com/NeroGeer",
+                  'email': "nerogeerjob@gmail.com",
+              },
+              )
 
 admin = Admin(app=app, engine=engine, authentication_backend=AdminAuth())
 setup_admin(admin)

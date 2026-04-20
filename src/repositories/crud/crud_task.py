@@ -188,6 +188,10 @@ async def create_task(
     team_id: int, task_data: TaskCreateSchema, current_user: User, session: SessionDep
 ):
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Creates a new task in a team.
 
     Rules:
@@ -299,6 +303,10 @@ async def update_task_status(
     session: SessionDep,
 ):
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Handles task status transitions.
 
     Rules:

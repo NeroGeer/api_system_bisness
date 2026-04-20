@@ -15,6 +15,10 @@ from dataclasses import dataclass
 @dataclass
 class PermissionResult:
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Result object representing evaluated permissions for a user.
 
     Attributes:

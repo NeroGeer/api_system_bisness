@@ -6,6 +6,10 @@ from src.scheme.schemas_admin import AdminTeamCrateSchema
 
 async def create_team(session: SessionDep, data: AdminTeamCrateSchema) -> Team:
     """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
     Creates a new team in the system.
 
     Args:
