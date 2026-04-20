@@ -1,7 +1,7 @@
 from src.database.database import SessionDep
+from src.logger.logger import logger
 from src.models.model_team import Team
 from src.scheme.schemas_admin import AdminTeamCrateSchema
-from src.logger.logger import logger
 
 
 async def create_team(session: SessionDep, data: AdminTeamCrateSchema) -> Team:

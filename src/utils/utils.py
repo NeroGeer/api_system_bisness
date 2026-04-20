@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, UTC, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 
 async def make_date_range(start: date, end: date):

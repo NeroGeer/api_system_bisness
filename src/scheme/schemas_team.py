@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class TeamRole(str, Enum):
@@ -30,8 +31,7 @@ class TeamMemberSchema(BaseModel):
     team: TeamSchema
     role: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CurrentTeamSchema(BaseModel):
@@ -61,3 +61,5 @@ class TeamResponseSchema(BaseModel):
     id: int
     name: str
     members: list[TeamMemberResponseSchema]
+
+    model_config = ConfigDict(from_attributes=True)

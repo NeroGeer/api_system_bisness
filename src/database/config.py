@@ -1,8 +1,8 @@
+import os
 from typing import Dict
 
-from pydantic import BaseModel, PostgresDsn, ValidationError, Field, field_validator
+from pydantic import BaseModel, Field, PostgresDsn, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
 
 
 class DatabaseConfig(BaseModel):
@@ -38,13 +38,15 @@ class DatabaseConfig(BaseModel):
     echo_pool: bool = False
     pool_size: int = 50
     max_overflow: int = 10
-    naming_convention: Dict[str, str] = Field(default_factory=lambda: {
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s"
-    })
+    naming_convention: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_%(constraint_name)s",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
 
 
 class JWTConfig(BaseModel):
@@ -57,6 +59,7 @@ class JWTConfig(BaseModel):
         access_expire_min (int): Access token lifetime in minutes.
         refresh_expire_days (int): Refresh token lifetime in days.
     """
+
     secret_key: str
     algorithm: str
     access_expire_min: int
@@ -71,6 +74,7 @@ class RedisConfig(BaseModel):
         url (str | None): Redis connection URL.
         port (int | None): Redis port (optional if URL is used).
     """
+
     url: str | None = None
     port: int | None = None
 
@@ -88,6 +92,7 @@ class AppConfig(BaseModel):
 
         allowed_extensions (set[str]): Allowed file upload extensions.
     """
+
     base_user_role_name: str
     default_role_id: int
 
@@ -121,11 +126,12 @@ class Settings(BaseSettings):
         APP_CONFIG__DB__URL=postgresql+psycopg2://...
         APP_CONFIG__JWT__SECRET_KEY=...
     """
+
     model_config = SettingsConfigDict(
         env_file=("src/.env", "src/.test.env"),
         case_sensitive=False,
         env_nested_delimiter="__",
-        env_prefix="APP_CONFIG__"
+        env_prefix="APP_CONFIG__",
     )
     db: DatabaseConfig
     redis: RedisConfig = RedisConfig()

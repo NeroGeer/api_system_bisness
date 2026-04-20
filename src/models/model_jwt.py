@@ -1,8 +1,7 @@
-from sqlalchemy import String, ForeignKey, DateTime
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-
-from datetime import datetime, UTC
 
 from src.models.model_base import Base
 
@@ -32,6 +31,7 @@ class RefreshToken(Base):
         created_at (datetime):
             Timestamp when the token was created.
     """
+
     __tablename__ = "refresh_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -39,6 +39,5 @@ class RefreshToken(Base):
     token: Mapped[str] = mapped_column(String, unique=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

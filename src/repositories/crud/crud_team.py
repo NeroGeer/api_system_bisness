@@ -3,10 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.database.database import SessionDep
-from src.models.model_user import User
-from src.models.model_team import TeamMember
-from src.scheme.schemas_team import UpdateTeamMemberRoleSchema, AddTeamMemberSchema, TeamRole
 from src.logger.logger import logger
+from src.models.model_team import Team, TeamMember
+from src.models.model_user import User
+from src.scheme.schemas_team import (
+    AddTeamMemberSchema,
+    TeamRole,
+    UpdateTeamMemberRoleSchema,
+)
 
 
 async def get_members_team(session: SessionDep, team_id: int):
@@ -21,24 +25,22 @@ async def get_members_team(session: SessionDep, team_id: int):
         list[TeamMember]: team members with loaded user relation
     """
     logger.info(f"Fetching members by team ID: {team_id}")
-    stmt = (select(TeamMember)
-            .where(TeamMember.team_id == team_id)
-            .options(selectinload(TeamMember.user))
-            )
+    stmt = (
+        select(Team)
+        .where(Team.id == team_id)
+        .options(selectinload(Team.members).selectinload(TeamMember.user))
+    )
 
-    result = await session.scalars(stmt)
+    result = await session.scalar(stmt)
     if result:
-        logger.debug(f"TeamMembers found: {result}")
+        logger.debug(f"Team found: {result}")
     else:
-        logger.warning(f"TeamMembers no found with ID: {team_id}")
-    return result.all()
+        logger.warning(f"Team no found with ID: {team_id}")
+    return result
 
 
 async def add_members_team(
-        team_id: int,
-        data: AddTeamMemberSchema,
-        session: SessionDep,
-        user: User
+    team_id: int, data: AddTeamMemberSchema, session: SessionDep, user: User
 ):
     """
     Adds a user to a team.
@@ -53,10 +55,9 @@ async def add_members_team(
         f"actor_user_id={user.id}"
     )
     existing = await session.scalar(
-        select(TeamMember)
-        .where(TeamMember.user_id == data.user_id,
-               TeamMember.team_id == team_id
-               )
+        select(TeamMember).where(
+            TeamMember.user_id == data.user_id, TeamMember.team_id == team_id
+        )
     )
 
     if existing:
@@ -68,11 +69,7 @@ async def add_members_team(
     if not any(role.name == "admin" for role in user.roles):
         data.role = TeamRole.employee
 
-    member = TeamMember(
-        user_id=data.user_id,
-        team_id=team_id,
-        role=data.role
-    )
+    member = TeamMember(user_id=data.user_id, team_id=team_id, role=data.role)
 
     session.add(member)
     await session.commit()
@@ -86,10 +83,7 @@ async def add_members_team(
 
 
 async def update_member_role(
-        team_id: int,
-        user_id: int,
-        data: UpdateTeamMemberRoleSchema,
-        session: SessionDep
+    team_id: int, user_id: int, data: UpdateTeamMemberRoleSchema, session: SessionDep
 ):
     """
     Updates a team member role.
@@ -111,8 +105,7 @@ async def update_member_role(
     )
 
     stmt = select(TeamMember).where(
-        TeamMember.user_id == user_id,
-        TeamMember.team_id == team_id
+        TeamMember.user_id == user_id, TeamMember.team_id == team_id
     )
 
     member = await session.scalar(stmt)
@@ -136,10 +129,7 @@ async def update_member_role(
 
 
 async def delete_members_team(
-        team_id: int,
-        user_id: int,
-        session: SessionDep,
-        user: User
+    team_id: int, user_id: int, session: SessionDep, user: User
 ):
     """
     Removes a user from a team.
@@ -162,8 +152,7 @@ async def delete_members_team(
         raise HTTPException(status_code=400, detail="You cannot remove yourself")
 
     stmt = select(TeamMember).where(
-        TeamMember.user_id == user_id,
-        TeamMember.team_id == team_id
+        TeamMember.user_id == user_id, TeamMember.team_id == team_id
     )
 
     member = await session.scalar(stmt)
@@ -174,6 +163,4 @@ async def delete_members_team(
     await session.delete(member)
     await session.commit()
 
-    logger.info(
-        f"Team member deleted: team_id={team_id}, user_id={user_id}"
-    )
+    logger.info(f"Team member deleted: team_id={team_id}, user_id={user_id}")

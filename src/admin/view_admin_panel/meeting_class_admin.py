@@ -1,5 +1,6 @@
 from sqladmin import ModelView
 from sqladmin.filters import ForeignKeyFilter
+
 from src.models.model_meeting import Meeting, MeetingParticipant
 from src.models.model_team import Team
 from src.models.model_user import User

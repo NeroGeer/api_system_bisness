@@ -1,13 +1,16 @@
 from sqlalchemy import insert
+
 import src.models.model_user as md
-from src.database.config import settings
 from src.core.security.hash_password import hash_password
+from src.database.config import settings
 
 
-roles_data = [
-    {"name": "admin"},
-    {"name": settings.app.base_user_role_name},
-]
+def get_roles_data():
+    return [
+        {"id": 1, "name": "admin"},
+        {"id": 2, "name": settings.app.base_user_role_name},
+    ]
+
 
 permissions_data = [
     {"name": "admin.panel.access"},
@@ -20,7 +23,6 @@ role_permissions_data = [
     # admin → 2 permissions
     {"role_id": 1, "permission_id": 1},  # admin.panel.access
     {"role_id": 1, "permission_id": 2},  # user.create
-
     # user → 2 permissions
     {"role_id": 2, "permission_id": 3},  # user.view
     {"role_id": 2, "permission_id": 4},  # profile.edit
@@ -49,7 +51,7 @@ user_roles_data = [
 
 
 async def insert_rbac_data(conn):
-    await conn.execute(insert(md.Role), roles_data)
+    await conn.execute(insert(md.Role), get_roles_data())
     await conn.execute(insert(md.Permission), permissions_data)
     await conn.execute(insert(md.role_permissions), role_permissions_data)
 

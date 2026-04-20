@@ -1,38 +1,41 @@
-from datetime import date
-from sqlalchemy import select
 from collections import defaultdict
+from datetime import date
+
+from sqlalchemy import select
 
 from src.database.database import SessionDep
+from src.logger.logger import logger
 from src.models.model_meeting import Meeting
+from src.models.model_tasks import Task
 from src.models.model_team import TeamMember
 from src.models.model_user import User
-from src.models.model_tasks import Task
+from src.scheme.schemas_calendar import CalendarDaySchema, CalendarEventSchema
 from src.utils.utils import make_date_range
-from src.scheme.schemas_calendar import CalendarEventSchema, CalendarDaySchema
-from src.logger.logger import logger
 
 
-async def get_calendar(current_user: User,
-                       session: SessionDep,
-                       start_date: date | None = None,
-                       end_date: date | None = None):
+async def get_calendar(
+    current_user: User,
+    session: SessionDep,
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     """
-       Retrieves calendar events (meetings and tasks) for a user within a date range.
+    Retrieves calendar events (meetings and tasks) for a user within a date range.
 
-       This function aggregates:
-           - Meetings from user's teams
-           - Tasks from user's teams
-           - Groups them by day for calendar view
+    This function aggregates:
+        - Meetings from user's teams
+        - Tasks from user's teams
+        - Groups them by day for calendar view
 
-       Args:
-           current_user (User): Authenticated user.
-           session (SessionDep): Database session.
-           start_date (date | None): Start of date range.
-           end_date (date | None): End of date range.
+    Args:
+        current_user (User): Authenticated user.
+        session (SessionDep): Database session.
+        start_date (date | None): Start of date range.
+        end_date (date | None): End of date range.
 
-       Returns:
-           list[CalendarDaySchema]: List of days with associated events.
-       """
+    Returns:
+        list[CalendarDaySchema]: List of days with associated events.
+    """
 
     logger.debug(
         f"Building calendar for user_id={current_user.id}, "
@@ -57,8 +60,7 @@ async def get_calendar(current_user: User,
 
     team_ids = (
         await session.scalars(
-            select(TeamMember.team_id)
-            .where(TeamMember.user_id == current_user.id)
+            select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
         )
     ).all()
 
@@ -68,30 +70,20 @@ async def get_calendar(current_user: User,
 
     logger.debug(f"User belongs to teams: {team_ids}")
 
-    meetings_stmt = (
-        select(Meeting)
-        .where(
-            Meeting.team_id.in_(team_ids),
-            Meeting.start_time <= end_dt,
-            Meeting.end_time >= start_dt
-        )
+    meetings_stmt = select(Meeting).where(
+        Meeting.team_id.in_(team_ids),
+        Meeting.start_time <= end_dt,
+        Meeting.end_time >= start_dt,
     )
 
-    tasks_stmt = (
-        select(Task)
-        .where(
-            Task.team_id.in_(team_ids),
-            Task.deadline >= start_dt,
-            Task.deadline < end_dt
-        )
+    tasks_stmt = select(Task).where(
+        Task.team_id.in_(team_ids), Task.deadline >= start_dt, Task.deadline < end_dt
     )
 
     meetings = (await session.scalars(meetings_stmt)).all()
     tasks = (await session.scalars(tasks_stmt)).all()
 
-    logger.debug(
-        f"Calendar data loaded: meetings={len(meetings)}, tasks={len(tasks)}"
-    )
+    logger.debug(f"Calendar data loaded: meetings={len(meetings)}, tasks={len(tasks)}")
 
     events = [
         *[CalendarEventSchema.from_task(t) for t in tasks],
@@ -104,10 +96,7 @@ async def get_calendar(current_user: User,
         events_by_day[e.start.date()].append(e)
 
     result = [
-        CalendarDaySchema(
-            date=day,
-            events=sorted(day_events, key=lambda x: x.start)
-        )
+        CalendarDaySchema(date=day, events=sorted(day_events, key=lambda x: x.start))
         for day, day_events in sorted(events_by_day.items())
     ]
 

@@ -1,36 +1,38 @@
 from datetime import date
 
 from fastapi import HTTPException
-from sqlalchemy import select, delete, and_
+from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import selectinload
 
 from src.database.database import SessionDep
 from src.logger.logger import logger
-from src.models.model_user import User
 from src.models.model_meeting import Meeting, MeetingParticipant
+from src.models.model_user import User
 from src.repositories.meeting_repository import check_meeting_conflicts
-from src.scheme.schemas_meeting import MeetingParticipantsDeleteSchema, MeetingCreateSchema, MeetingUpdateSchema
+from src.scheme.schemas_meeting import MeetingCreateSchema, MeetingUpdateSchema
 from src.scheme.schemas_team import TeamRole
-from src.services.task_service import require_admin_or_team_manager
 from src.services.meeting_service import validate_meeting_data
+from src.services.task_service import require_admin_or_team_manager
 from src.utils.utils import make_date_range
 
 
-async def meeting_stmt(session: SessionDep, meeting_id: int, team_id: int | None = None) -> Meeting:
+async def meeting_stmt(
+    session: SessionDep, meeting_id: int, team_id: int | None = None
+) -> Meeting:
     """
-        Fetches a meeting by ID with participants loaded.
+    Fetches a meeting by ID with participants loaded.
 
-        Args:
-            session (SessionDep): Database session.
-            meeting_id (int): Meeting ID.
-            team_id (int | None): Optional team filter.
+    Args:
+        session (SessionDep): Database session.
+        meeting_id (int): Meeting ID.
+        team_id (int | None): Optional team filter.
 
-        Returns:
-            Meeting: Meeting instance.
+    Returns:
+        Meeting: Meeting instance.
 
-        Raises:
-            HTTPException: If meeting not found.
-        """
+    Raises:
+        HTTPException: If meeting not found.
+    """
 
     stmt = (
         select(Meeting)
@@ -51,14 +53,14 @@ async def meeting_stmt(session: SessionDep, meeting_id: int, team_id: int | None
 
 
 async def get_meeting(
-        team_id: int,
-        current_user: User,
-        session: SessionDep,
-        meeting_id: int | None = None,
-        only_my_meetings: bool = False,
-        participant_user_id: int | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
+    team_id: int,
+    current_user: User,
+    session: SessionDep,
+    meeting_id: int | None = None,
+    only_my_meetings: bool = False,
+    participant_user_id: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ):
     """
     Retrieves meetings for a team with optional filters.
@@ -70,47 +72,43 @@ async def get_meeting(
         - filtering by current user participation
     """
 
-    logger.debug(
-        f"Fetching meetings: user_id={current_user.id}, team_id={team_id}"
-    )
+    logger.debug(f"Fetching meetings: user_id={current_user.id}, team_id={team_id}")
 
-    await require_admin_or_team_manager(session=session, current_user=current_user,
-                                        team_id=team_id, team_role={TeamRole.manager, TeamRole.employee})
+    await require_admin_or_team_manager(
+        session=session,
+        current_user=current_user,
+        team_id=team_id,
+        team_role={TeamRole.manager, TeamRole.employee},
+    )
     stmt = (
-        select(Meeting)
-        .where(Meeting.team_id == team_id)
-        .order_by(Meeting.start_time)
+        select(Meeting).where(Meeting.team_id == team_id).order_by(Meeting.start_time)
     )
 
     if meeting_id is not None:
         stmt = stmt.where(Meeting.id == meeting_id)
 
     if start_date and end_date is not None:
-        start_dt, end_dt = make_date_range(start_date, end_date)
+        start_dt, end_dt = await make_date_range(start_date, end_date)
 
         stmt = stmt.where(
-            and_(
-                Meeting.start_time <= end_dt,
-                Meeting.end_time >= start_dt
-            )
+            and_(Meeting.start_time <= end_dt, Meeting.end_time >= start_dt)
         )
 
     if only_my_meetings and participant_user_id is not None:
-        raise HTTPException(status_code=400, detail="Conflicting filters: "
-                            "use only_my_meetings OR participant_user_id")
+        raise HTTPException(
+            status_code=400,
+            detail="Conflicting filters: "
+            "use only_my_meetings OR participant_user_id",
+        )
 
     if only_my_meetings:
         stmt = stmt.where(
-            Meeting.participants.any(
-                MeetingParticipant.user_id == current_user.id
-            )
+            Meeting.participants.any(MeetingParticipant.user_id == current_user.id)
         )
 
     if participant_user_id is not None:
         stmt = stmt.where(
-            Meeting.participants.any(
-                MeetingParticipant.user_id == participant_user_id
-            )
+            Meeting.participants.any(MeetingParticipant.user_id == participant_user_id)
         )
 
     result = await session.execute(stmt)
@@ -127,10 +125,10 @@ async def get_meeting(
 
 
 async def create_meeting(
-        current_user: User,
-        session: SessionDep,
-        meeting_data: MeetingCreateSchema,
-        team_id: int
+    current_user: User,
+    session: SessionDep,
+    meeting_data: MeetingCreateSchema,
+    team_id: int,
 ):
     """
     Creates a new meeting and assigns participants.
@@ -141,20 +139,20 @@ async def create_meeting(
         - conflict checks (via service layer)
     """
 
-    logger.info(
-        f"Creating meeting: user_id={current_user.id}, team_id={team_id}"
+    logger.info(f"Create meeting: user_id={current_user.id}, team_id={team_id}")
+    result_perm = await require_admin_or_team_manager(
+        session=session, current_user=current_user, team_id=team_id
     )
-    result_perm = await require_admin_or_team_manager(session=session,
-                                                      current_user=current_user,
-                                                      team_id=team_id)
 
     participants_set: set[int] = set(meeting_data.participants or [])
 
-    await validate_meeting_data(session=session,
-                                team_id=team_id,
-                                creator=current_user,
-                                participants_set=participants_set,
-                                result_perm=result_perm)
+    await validate_meeting_data(
+        session=session,
+        team_id=team_id,
+        creator=current_user,
+        participants_set=participants_set,
+        result_perm=result_perm,
+    )
 
     meeting = Meeting(
         creator_id=current_user.id,
@@ -169,22 +167,22 @@ async def create_meeting(
     await session.flush()
 
     for user_id in participants_set:
-        session.add(MeetingParticipant(
-            meeting_id=meeting.id,
-            user_id=user_id
-        ))
+        session.add(MeetingParticipant(meeting_id=meeting.id, user_id=user_id))
 
     await session.commit()
     logger.info(f"Meeting created: meeting_id={meeting.id}")
+
+    await session.refresh(meeting)
+
     return meeting
 
 
 async def update_meeting(
-        current_user: User,
-        session: SessionDep,
-        meeting_id: int,
-        data: MeetingUpdateSchema,
-        team_id: int,
+    current_user: User,
+    session: SessionDep,
+    meeting_id: int,
+    data: MeetingUpdateSchema,
+    team_id: int,
 ):
     """
     Updates meeting data including:
@@ -205,7 +203,9 @@ async def update_meeting(
     if not data or data is None:
         raise HTTPException(status_code=400, detail="Data task empty")
 
-    meeting = await meeting_stmt(session=session, meeting_id=meeting_id, team_id=team_id)
+    meeting = await meeting_stmt(
+        session=session, meeting_id=meeting_id, team_id=team_id
+    )
 
     result_perm = await require_admin_or_team_manager(
         session=session,
@@ -227,24 +227,20 @@ async def update_meeting(
         meeting.description = data.description
 
     if data.participants is not None:
-        logger.debug(
-            f"Participants update: meeting_id={meeting_id}, to_add={to_add}"
-        )
+
         to_add = set(data.participants) - {p.user_id for p in meeting.participants}
+        logger.debug(f"Participants update: meeting_id={meeting_id}, to_add={to_add}")
+        if to_add:
+            await validate_meeting_data(
+                session=session,
+                team_id=meeting.team_id,
+                creator=current_user,
+                result_perm=result_perm,
+                participants_set=to_add,
+            )
 
-        await validate_meeting_data(
-            session=session,
-            team_id=meeting.team_id,
-            creator=current_user,
-            result_perm=result_perm,
-            participants_set=to_add,
-        )
-
-        for user_id in to_add:
-            session.add(MeetingParticipant(
-                meeting_id=meeting_id,
-                user_id=user_id
-            ))
+            for user_id in to_add:
+                session.add(MeetingParticipant(meeting_id=meeting_id, user_id=user_id))
 
     new_start = data.start_time or meeting.start_time
     new_end = data.end_time or meeting.end_time
@@ -266,8 +262,7 @@ async def update_meeting(
         if conflicts:
 
             raise HTTPException(
-                status_code=400,
-                detail=f"Users already have meetings: {conflicts}"
+                status_code=400, detail=f"Users already have meetings: {conflicts}"
             )
 
         meeting.start_time = new_start
@@ -282,11 +277,11 @@ async def update_meeting(
 
 
 async def delete_meeting_participant(
-        current_user: User,
-        session: SessionDep,
-        meeting_id: int,
-        team_id: int,
-        users_ids: MeetingParticipantsDeleteSchema
+    current_user: User,
+    session: SessionDep,
+    meeting_id: int,
+    team_id: int,
+    users_ids: list[int],
 ):
     """
     Removes participants from a meeting.
@@ -296,7 +291,7 @@ async def delete_meeting_participant(
         session (SessionDep): Database session.
         meeting_id (int): Target meeting ID.
         team_id (int): Team ID.
-        users_ids (MeetingParticipantsDeleteSchema): List of user IDs to remove.
+        users_ids: list[int]: List of user IDs to remove.
 
     Returns:
         dict: Meeting ID and removed participants.
@@ -308,7 +303,9 @@ async def delete_meeting_participant(
     if not users_ids:
         raise HTTPException(status_code=400, detail="No users provided")
 
-    meeting = await meeting_stmt(session=session, meeting_id=meeting_id, team_id=team_id)
+    meeting = await meeting_stmt(
+        session=session, meeting_id=meeting_id, team_id=team_id
+    )
 
     result_perm = await require_admin_or_team_manager(
         session=session,
@@ -328,16 +325,16 @@ async def delete_meeting_participant(
 
     if missing:
         raise HTTPException(
-            status_code=400,
-            detail=f"Users not in meeting: {list(missing)}"
+            status_code=400, detail=f"Users not in meeting: {list(missing)}"
         )
 
     await session.execute(
         delete(MeetingParticipant).where(
             MeetingParticipant.meeting_id == meeting_id,
-            MeetingParticipant.user_id.in_(to_remove)
+            MeetingParticipant.user_id.in_(to_remove),
         )
     )
+    await session.commit()
 
     logger.info(
         f"Participants removed: meeting_id={meeting_id}, users={list(to_remove)}"
@@ -350,11 +347,8 @@ async def delete_meeting_participant(
 
 
 async def delete_meeting_by_id(
-        team_id: int,
-        current_user: User,
-        session: SessionDep,
-        meeting_id: int):
-
+    team_id: int, current_user: User, session: SessionDep, meeting_id: int
+):
     """
     Deletes a meeting and all related participants.
 
@@ -378,7 +372,9 @@ async def delete_meeting_by_id(
         team_id=team_id,
     )
 
-    meeting = await meeting_stmt(session=session, meeting_id=meeting_id, team_id=team_id)
+    meeting = await meeting_stmt(
+        session=session, meeting_id=meeting_id, team_id=team_id
+    )
 
     if not result_perm.is_admin and meeting.creator_id != current_user.id:
         logger.warning(
@@ -392,5 +388,4 @@ async def delete_meeting_by_id(
 
     logger.info(f"Meeting deleted: meeting_id={meeting_id}")
 
-    return {'message': 'Meeting deleted',
-            'detail': meeting}
+    return {"message": "Meeting deleted"}

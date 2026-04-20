@@ -1,6 +1,6 @@
-from jose import jwt
+from datetime import UTC, datetime, timedelta
 
-from datetime import datetime, timedelta, UTC
+from jose import jwt
 
 from src.database.config import settings
 from src.logger.logger import logger
@@ -21,5 +21,6 @@ async def create_token(data: dict):
     expire = datetime.now(UTC) + timedelta(minutes=settings.jwt.access_expire_min)
     to_encode.update({"exp": expire, "type": "access"})
     logger.debug("JWT token successfully created")
-    return jwt.encode(to_encode, settings.jwt.secret_key, algorithm=settings.jwt.algorithm)
-
+    return jwt.encode(
+        to_encode, settings.jwt.secret_key, algorithm=settings.jwt.algorithm
+    )

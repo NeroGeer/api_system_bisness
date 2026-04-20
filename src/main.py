@@ -1,23 +1,24 @@
-#import uvicorn
+# import uvicorn
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from sqladmin import Admin
-#from starlette.staticfiles import StaticFiles
 
 from src.admin.admin import setup_admin
 from src.admin.class_admin.auth_class import AdminAuth
-from src.models.model_base import Base
 from src.database.database import engine, redis_client
+from src.database.insert_perm import insert_rbac_data
+from src.models.model_base import Base
+from src.route.root_calendar import route_calendar
 from src.route.route_admin import route_admin
-from src.route.route_jwt import route_jwt
 from src.route.route_comment import route_comment
+from src.route.route_jwt import route_jwt
 from src.route.route_meeting import route_meeting
 from src.route.route_task import route_task
 from src.route.route_team import route_team
 from src.route.route_user import route_user
-from src.database.insert_perm import insert_rbac_data
 
-
-from contextlib import asynccontextmanager
+# from starlette.staticfiles import StaticFiles
 
 
 @asynccontextmanager
@@ -72,8 +73,9 @@ app.include_router(route_team)
 app.include_router(route_meeting)
 app.include_router(route_task)
 app.include_router(route_comment)
+app.include_router(route_calendar)
 
-#app.mount("/images", StaticFiles(directory="/usr/share/nginx/static/images"), name="images")
+# app.mount("/images", StaticFiles(directory="/usr/share/nginx/static/images"), name="images")
 
 
 # if __name__ == '__main__':

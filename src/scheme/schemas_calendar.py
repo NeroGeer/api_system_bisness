@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -22,7 +22,7 @@ class CalendarEventSchema(BaseModel):
             type="task",
             title=(task.description or "").split("\n")[0][:50],
             start=task.deadline,
-            end=None
+            end=None,
         )
 
     @classmethod
@@ -32,7 +32,7 @@ class CalendarEventSchema(BaseModel):
             type="meeting",
             title=meeting.title,
             start=meeting.start_time,
-            end=meeting.end_time
+            end=meeting.end_time,
         )
 
 

@@ -1,9 +1,9 @@
-from typing import Iterable, Annotated
+from typing import Annotated, Iterable
 
 from fastapi import Depends, HTTPException
 
-from src.logger.logger import logger
 from src.core.security.dependencies import get_current_user
+from src.logger.logger import logger
 from src.models.model_user import User
 from src.scheme.schemas_user import UserRole
 
@@ -38,11 +38,10 @@ def require_role(roles: Iterable[UserRole]):
     Returns:
         Callable: Dependency function that returns the current user if authorized.
     """
+
     async def checker(user: Annotated[User, Depends(get_current_user)]):
         if not has_role(user, roles):
-            logger.warning(
-                f"Access denied (role mismatch) for user_id={user.id}"
-            )
+            logger.warning(f"Access denied (role mismatch) for user_id={user.id}")
             raise HTTPException(403, detail="Forbidden")
         logger.debug(f"Access granted by role for user_id={user.id}")
         return user
@@ -83,21 +82,15 @@ def require_permission(permission: str):
     Returns:
         Callable: Dependency function that returns the current user if authorized.
     """
-    async def checker(
-            user: Annotated[User, Depends(get_current_user)]
-    ):
+
+    async def checker(user: Annotated[User, Depends(get_current_user)]):
         if not has_permission(user, permission):
             logger.warning(
                 f"Access denied (missing permission={permission}) "
                 f"for user_id={user.id}"
             )
-            raise HTTPException(
-                status_code=403,
-                detail="Missing permission"
-            )
-        logger.debug(
-            f"Access granted by permission={permission} for user_id={user.id}"
-        )
+            raise HTTPException(status_code=403, detail="Missing permission")
+        logger.debug(f"Access granted by permission={permission} for user_id={user.id}")
         return user
 
     return checker

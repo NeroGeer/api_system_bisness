@@ -2,10 +2,10 @@ from sqladmin import ModelView
 from sqladmin.filters import BooleanFilter
 from starlette.requests import Request
 from wtforms import PasswordField
-from wtforms.validators import DataRequired, Optional
+from wtforms.validators import Optional
 
-from src.models.model_user import User, Permission, Role
 from src.core.security.hash_password import hash_password
+from src.models.model_user import Permission, Role, User
 
 
 class UserAdmin(ModelView, model=User):
@@ -19,14 +19,12 @@ class UserAdmin(ModelView, model=User):
         User.roles,
     ]
 
-    form_overrides = {
-        "hashed_password": PasswordField
-    }
+    form_overrides = {"hashed_password": PasswordField}
 
     form_args = {
         "hashed_password": {
             "validators": [Optional()],
-            "render_kw": {"placeholder": "Оставьте пустым, чтобы не менять"}
+            "render_kw": {"placeholder": "Оставьте пустым, чтобы не менять"},
         }
     }
 
@@ -46,7 +44,9 @@ class UserAdmin(ModelView, model=User):
         if name == "roles":
             return ", ".join(r.name for r in model.roles)
 
-    async def on_model_change(self, data: dict, model: User, is_created: bool, request: Request):
+    async def on_model_change(
+        self, data: dict, model: User, is_created: bool, request: Request
+    ):
         password = data.get("hashed_password")
 
         if password:

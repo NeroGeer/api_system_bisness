@@ -1,26 +1,20 @@
-from pydantic import BaseModel, Field, EmailStr
-
 from typing import List, Optional
 
-from src.scheme.schemas_team import TeamSchema
+from pydantic import BaseModel, EmailStr, Field
 
-
-class TeamMemberShortSchema(BaseModel):
-    team_id: int
-    team_name: str
-    role: Optional[str] = None
-
-    class Config:
-        from_attributes = True
+from src.scheme.schemas_team import TeamMemberSchema
+from src.scheme.schemas_user import CurrentTeamSchema, RoleSchema
 
 
 class AdminScheme(BaseModel):
     id: int
     email: EmailStr
-    roles: List[str] = []
+    roles: List[RoleSchema]
 
-    current_team: Optional[TeamSchema] = None
-    team_memberships: List[TeamMemberShortSchema] = Field(default_factory=list)
+    current_team: Optional[CurrentTeamSchema] = None
+    team_memberships: List[TeamMemberSchema] = Field(
+        default_factory=list, validation_alias="team_memberships"
+    )
 
 
 class AdminTeamCrateSchema(BaseModel):

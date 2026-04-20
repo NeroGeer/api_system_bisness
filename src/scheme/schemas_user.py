@@ -1,8 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional
 from enum import Enum
+from typing import List, Optional
 
-from src.scheme.schemas_team import TeamMemberSchema, CurrentTeamSchema
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from src.scheme.schemas_team import CurrentTeamSchema, TeamMemberSchema
 
 
 class UserRole(str, Enum):
@@ -18,6 +19,7 @@ class BaseUserSchema(BaseModel):
         id (int):
             Unique identifier of the user.
     """
+
     id: int
 
 
@@ -26,8 +28,7 @@ class CreateUserScheme(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
 
-
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
         if len(v) < 8:
@@ -43,23 +44,29 @@ class CreateUserScheme(BaseModel):
             raise ValueError("Password must contain a digit")
 
         if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>/?`~" for c in v):
-            raise ValueError('Password must contain a special symbol')
+            raise ValueError("Password must contain a special symbol")
 
         return v
+
+
+class RoleSchema(BaseModel):
+    name: str
 
 
 class OutCreateUserScheme(BaseUserSchema):
 
     email: EmailStr
-    roles: List[str] = Field(default_factory=list)
+    roles: List[RoleSchema]
 
 
 class LoginUserScheme(BaseUserSchema):
     email: EmailStr
-    roles: List[str] = Field(default_factory=list)
+    roles: List[RoleSchema]
 
     current_team: Optional[CurrentTeamSchema] = None
-    teams: List[TeamMemberSchema] = Field(default_factory=list)
+    teams: List[TeamMemberSchema] = Field(
+        default_factory=list, validation_alias="team_memberships"
+    )
 
 
 class UpdateUserScheme(BaseModel):

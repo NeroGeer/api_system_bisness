@@ -1,9 +1,8 @@
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import os
+from logging.handlers import TimedRotatingFileHandler
 
 from src.database.config import settings
-
 
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -39,7 +38,7 @@ def setup_logger(name: str = "app") -> logging.Logger:
 
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | "
-            "%(module)s:%(lineno)d | %(funcName)s | %(message)s",
+        "%(module)s:%(lineno)d | %(funcName)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 

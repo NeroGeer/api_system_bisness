@@ -1,10 +1,9 @@
-from sqlalchemy import String, ForeignKey, Column, Table
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from typing import TYPE_CHECKING, List
 
-from typing import List, TYPE_CHECKING
+from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.model_base import Base
-
 
 if TYPE_CHECKING:
     from src.models.model_meeting import Meeting, MeetingParticipant
@@ -23,6 +22,7 @@ class PermissionResult:
         is_team_role (bool): Whether user has team-based role access.
         is_executor (bool): Whether user is an executor of a task/resource.
     """
+
     is_admin: bool
     is_team_role: bool
     is_executor: bool
@@ -45,39 +45,40 @@ user_roles = Table(
 
 class User(Base):
     """
-       Database model representing an application user.
+    Database model representing an application user.
 
-       Users can:
-           - Belong to multiple teams
-           - Have multiple roles (RBAC system)
-           - Participate in meetings
-           - Create meetings
+    Users can:
+        - Belong to multiple teams
+        - Have multiple roles (RBAC system)
+        - Participate in meetings
+        - Create meetings
 
-       Attributes:
-           id (int):
-               Primary key identifier.
+    Attributes:
+        id (int):
+            Primary key identifier.
 
-           email (str):
-               Unique user email used for authentication.
+        email (str):
+            Unique user email used for authentication.
 
-           hashed_password (str):
-               Securely stored password hash.
+        hashed_password (str):
+            Securely stored password hash.
 
-           is_active (bool):
-               Indicates whether user account is active.
+        is_active (bool):
+            Indicates whether user account is active.
 
-           team_memberships (List[TeamMember]):
-               Teams the user belongs to.
+        team_memberships (List[TeamMember]):
+            Teams the user belongs to.
 
-           roles (List[Role]):
-               Assigned roles for RBAC permissions.
+        roles (List[Role]):
+            Assigned roles for RBAC permissions.
 
-           created_meetings (List[Meeting]):
-               Meetings created by the user.
+        created_meetings (List[Meeting]):
+            Meetings created by the user.
 
-           meeting_participations (List[MeetingParticipant]):
-               Meetings where user is a participant.
-       """
+        meeting_participations (List[MeetingParticipant]):
+            Meetings where user is a participant.
+    """
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -86,22 +87,23 @@ class User(Base):
 
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    team_memberships: Mapped[List["TeamMember"]] = relationship(back_populates="user", lazy="selectin")
+    team_memberships: Mapped[List["TeamMember"]] = relationship(
+        back_populates="user",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     roles: Mapped[List["Role"]] = relationship(
-        secondary=user_roles,
-        back_populates="users",
-        lazy="selectin"
+        secondary=user_roles, back_populates="users", lazy="selectin"
     )
 
     created_meetings: Mapped[List["Meeting"]] = relationship(
-        back_populates="creator",
-        lazy="selectin"
+        back_populates="creator", lazy="selectin"
     )
 
     meeting_participations: Mapped[List["MeetingParticipant"]] = relationship(
-        back_populates="user",
-        lazy="selectin"
+        back_populates="user", lazy="selectin"
     )
 
     def __repr__(self) -> str:
@@ -110,37 +112,29 @@ class User(Base):
 
 class Role(Base):
     """
-       Role model for RBAC (Role-Based Access Control).
+    Role model for RBAC (Role-Based Access Control).
 
-       Roles define a set of permissions that can be assigned to users.
+    Roles define a set of permissions that can be assigned to users.
 
-       Attributes:
-           id (int): Primary key.
-           name (str): Unique role name.
-           users (List[User]): Users assigned to this role.
-           permissions (List[Permission]): Permissions granted by this role.
-       """
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique role name.
+        users (List[User]): Users assigned to this role.
+        permissions (List[Permission]): Permissions granted by this role.
+    """
+
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    name: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-        index=True,
-        nullable=False
-    )
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
 
     users: Mapped[List["User"]] = relationship(
-        secondary=user_roles,
-        back_populates="roles",
-        lazy="selectin"
+        secondary=user_roles, back_populates="roles", lazy="selectin"
     )
 
     permissions: Mapped[List["Permission"]] = relationship(
-        secondary="role_permissions",
-        back_populates="roles",
-        lazy="selectin"
+        secondary="role_permissions", back_populates="roles", lazy="selectin"
     )
 
     def __repr__(self) -> str:
@@ -149,30 +143,24 @@ class Role(Base):
 
 class Permission(Base):
     """
-       Permission model for fine-grained access control.
+    Permission model for fine-grained access control.
 
-       Permissions are assigned to roles and define specific allowed actions.
+    Permissions are assigned to roles and define specific allowed actions.
 
-       Attributes:
-           id (int): Primary key.
-           name (str): Unique permission identifier.
-           roles (List[Role]): Roles that include this permission.
-       """
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique permission identifier.
+        roles (List[Role]): Roles that include this permission.
+    """
+
     __tablename__ = "permissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    name: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-        index=True,
-        nullable=False
-    )
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
 
     roles: Mapped[List["Role"]] = relationship(
-        secondary="role_permissions",
-        back_populates="permissions",
-        lazy="selectin"
+        secondary="role_permissions", back_populates="permissions", lazy="selectin"
     )
 
     def __repr__(self) -> str:

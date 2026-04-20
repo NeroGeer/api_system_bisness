@@ -1,6 +1,6 @@
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String, UniqueConstraint, ForeignKey, Enum
+from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.model_base import Base
@@ -30,13 +30,18 @@ class Team(Base):
         members (List[TeamMember]):
             List of users who are members of the team.
     """
+
     __tablename__ = "teams"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
-    invite_code: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    invite_code: Mapped[str] = mapped_column(
+        String, unique=True, index=True, nullable=False
+    )
 
-    members: Mapped[List["TeamMember"]] = relationship(back_populates="team", lazy="selectin")
+    members: Mapped[List["TeamMember"]] = relationship(
+        back_populates="team", lazy="selectin"
+    )
 
     def __repr__(self):
         return f"Team name - ({self.name})"
@@ -68,23 +73,23 @@ class TeamMember(Base):
         team (Team):
             Relationship to the team entity.
     """
+
     __tablename__ = "team_members"
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "team_id"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "team_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
 
-    role: Mapped[TeamRole] = mapped_column(
-        Enum(TeamRole),
-        nullable=False
-    )
+    role: Mapped[TeamRole] = mapped_column(Enum(TeamRole), nullable=False)
 
-    user: Mapped["User"] = relationship(back_populates="team_memberships", lazy="selectin")
+    user: Mapped["User"] = relationship(
+        back_populates="team_memberships", lazy="selectin"
+    )
     team: Mapped["Team"] = relationship(back_populates="members", lazy="selectin")
 
     def __repr__(self):

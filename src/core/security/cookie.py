@@ -1,5 +1,4 @@
 from fastapi import Response
-from src.logger.logger import logger
 
 
 def set_refresh_cookie(response: Response, refresh_token: str) -> None:
@@ -9,7 +8,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=60 * 60 * 24 * 7  # 7 дней
+        max_age=60 * 60 * 24 * 7,  # 7 дней
     )
 
 
@@ -24,7 +23,7 @@ def set_access_cookie(response: Response, access_token: str) -> None:
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=60 * 15,    # 15 минут
+        max_age=60 * 15,  # 15 минут
     )
 
 

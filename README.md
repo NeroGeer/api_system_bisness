@@ -72,10 +72,7 @@ Backend система управления командами, задачами
 ---
 
 ###  RBAC (Role Based Access Control)
-- Roles:
-  - admin
-  - manager
-  - employee
+- Roles
 - Permissions system
 - Team-based access control
 - Task executor checks
@@ -107,57 +104,58 @@ Backend система управления командами, задачами
 
 ##  Конфигурация
 
-Все настройки через `.env`
+Все настройки задаются через `.env`
 
-Запуск проекта
-1. Установка зависимостей
-poetry install
+---
 
-или
+## Запуск проекта
 
+### 1. Установка зависимостей
+
+```bash
 pip install -r requirements.txt
-2. Запуск через Docker
+```
+
+## Запуск через Docker
+```bash
 docker-compose up --build
-3. Локальный запуск
-uvicorn src.main:app --reload
- API документация
+```
 
-После запуска:
-http://localhost:8000/docs
- Тестирование
-pytest
- Архитектура проекта
-src/
- ├── core/          # security, jwt, rbac
- ├── database/      # session, config
- ├── models/        # SQLAlchemy models
- ├── repositories/  # DB queries layer
- ├── services/      # business logic
- ├── scheme/        # pydantic schemas
- ├── utils/         # helpers
- ├── logger/        # logging setup
- ├── api/           # routes
+## API документация
+- http://localhost:8000/docs
 
- Основные принципы безопасности
-Пароли хранятся только в hashed виде (bcrypt)
-JWT access + refresh separation
-Проверка ролей и прав на уровне сервисов
-Проверка принадлежности к команде
-Проверка исполнителя задач
+## Архитектура проекта
+- src/
+  -  ├── core/          # security, jwt, rbac
+  -  ├── database/      # session, config
+  -  ├── models/        # SQLAlchemy models
+  -  ├── repositories/  # DB queries layer
+  -  ├── services/      # business logic
+  -  ├── scheme/        # pydantic schemas
+  -  ├── utils/         # helpers
+  -  ├── logger/        # logging setup
+  -  └── route/           # routes
 
- Особенности реализации
-Async-first архитектура
-Чистое разделение layers:
-API → Service → Repository → DB
-Redis caching layer
-SQLAlchemy 2.0 style queries
-Event listeners (например auto add meeting participant)
-Flexible RBAC system
 
-Планы развития
-WebSocket уведомления
-Celery background tasks
-Audit logs
-Rate limiting
-Full RBAC policy engine
-GraphQL layer (optional)
+## Основные принципы безопасности
+- Пароли хранятся только в hashed виде (bcrypt)
+- JWT access + refresh separation
+- Проверка ролей и прав на уровне сервисов
+- Проверка принадлежности к команде
+- Проверка исполнителя задач
+
+## Особенности реализации
+- Async-first архитектура
+- Чистое разделение layers:
+- API → Service → Repository → DB
+- Redis caching layer
+- SQLAlchemy 2.0 style queries
+- Flexible RBAC system
+
+## Планы развития
+- WebSocket уведомления
+- Celery background tasks
+- Audit logs
+- Rate limiting
+- Full RBAC policy engine
+- GraphQL layer (optional)

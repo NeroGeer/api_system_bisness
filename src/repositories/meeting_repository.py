@@ -3,16 +3,16 @@ from datetime import datetime
 from sqlalchemy import select
 
 from src.database.database import SessionDep
-from src.models.model_meeting import MeetingParticipant, Meeting
 from src.logger.logger import logger
+from src.models.model_meeting import Meeting, MeetingParticipant
 
 
 async def check_meeting_conflicts(
-        session: SessionDep,
-        user_ids: list[int],
-        start_time: datetime,
-        end_time: datetime,
-        exclude_meeting_id: int | None = None,
+    session: SessionDep,
+    user_ids: list[int],
+    start_time: datetime,
+    end_time: datetime,
+    exclude_meeting_id: int | None = None,
 ):
     """
     Checks for scheduling conflicts between users and existing meetings.
@@ -41,10 +41,7 @@ async def check_meeting_conflicts(
         },
     )
     stmt = (
-        select(
-            MeetingParticipant.user_id,
-            Meeting.id
-        )
+        select(MeetingParticipant.user_id, Meeting.id)
         .join(Meeting)
         .where(
             MeetingParticipant.user_id.in_(user_ids),

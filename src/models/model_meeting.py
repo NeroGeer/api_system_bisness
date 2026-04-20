@@ -1,9 +1,8 @@
-from sqlalchemy import String, ForeignKey, DateTime, event, UniqueConstraint
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, List
 
-from typing import List, TYPE_CHECKING
-
-from datetime import datetime, UTC
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.model_base import Base
 
@@ -49,40 +48,36 @@ class Meeting(Base):
         participants (List[MeetingParticipant]):
             List of users participating in the meeting.
     """
+
     __tablename__ = "meetings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
     team_id: Mapped[int] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     creator_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False)
 
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
     creator: Mapped["User"] = relationship(
-        back_populates="created_meetings",
-        lazy="selectin"
+        back_populates="created_meetings", lazy="selectin"
     )
     participants: Mapped[List["MeetingParticipant"]] = relationship(
-        back_populates="meeting",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        back_populates="meeting", cascade="all, delete-orphan", lazy="selectin"
     )
 
     def __repr__(self):
@@ -98,11 +93,10 @@ class MeetingParticipant(Base):
     Constraints:
         - A user can join a meeting only once (unique constraint).
     """
+
     __tablename__ = "meeting_participants"
 
-    __table_args__ = (
-        UniqueConstraint("meeting_id", "user_id"),
-    )
+    __table_args__ = (UniqueConstraint("meeting_id", "user_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -110,14 +104,11 @@ class MeetingParticipant(Base):
         ForeignKey("meetings.id", ondelete="CASCADE")
     )
 
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE")
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     meeting: Mapped["Meeting"] = relationship(back_populates="participants")
     user: Mapped["User"] = relationship(
-        back_populates="meeting_participations",
-        lazy="selectin"
+        back_populates="meeting_participations", lazy="selectin"
     )
 
     def __repr__(self):
@@ -135,9 +126,9 @@ def set_team_id(mapper, connection, target):
 
     result = connection.execute(
         """
-        SELECT team_id 
-        FROM team_members 
-        WHERE user_id = :user_id 
+        SELECT team_id
+        FROM team_members
+        WHERE user_id = :user_id
         LIMIT 1
         """,
         {"user_id": target.creator_id},

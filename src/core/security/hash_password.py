@@ -1,22 +1,20 @@
-from passlib.context import CryptContext
+import bcrypt
 
 from src.logger.logger import logger
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
     """
-       Hashes a plain text password using bcrypt algorithm.
+    Hashes a plain text password using bcrypt algorithm.
 
-       Args:
-           password (str): The plain text password to hash.
+    Args:
+        password (str): The plain text password to hash.
 
-       Returns:
-           str: A securely hashed password.
-       """
+    Returns:
+        str: A securely hashed password.
+    """
     logger.debug("Hashing password")
-    hashed_password = pwd_context.hash(password)
+    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     logger.debug("Password successfully hashed")
     return hashed_password
 
@@ -34,7 +32,7 @@ def verify_password(password: str, hashed: str) -> bool:
     """
     logger.debug("Verifying password against stored hash")
     try:
-        result = pwd_context.verify(password, hashed)
+        result = bcrypt.checkpw(password.encode(), hashed.encode())
         logger.debug(f"Password verification result: {result}")
         return result
     except Exception as e:

@@ -1,18 +1,16 @@
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
-from src.database.database import SessionDep
 from src.database.config import settings
+from src.database.database import SessionDep
+from src.logger.logger import logger
 from src.models.model_jwt import RefreshToken
 from src.models.model_user import User
-from src.logger.logger import logger
 
 
 async def refresh_token_create_by_bd(
-        token: str,
-        current_user: User,
-        session: SessionDep
+    token: str, current_user: User, session: SessionDep
 ):
     """
     Creates and stores a refresh token in the database.
@@ -31,7 +29,7 @@ async def refresh_token_create_by_bd(
     refresh_obj = RefreshToken(
         user_id=current_user.id,
         token=token,
-        expires_at=datetime.now(UTC) + timedelta(days=settings.jwt.refresh_expire_days)
+        expires_at=datetime.now(UTC) + timedelta(days=settings.jwt.refresh_expire_days),
     )
 
     session.add(refresh_obj)

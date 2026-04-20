@@ -1,16 +1,12 @@
-from fastapi import HTTPException, APIRouter
+from fastapi import APIRouter, HTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.services.auth_service import rotate_refresh_token
 from src.core.security import cookie
 from src.database.database import SessionDep
+from src.services.auth_service import rotate_refresh_token
 
-
-route_jwt = APIRouter(
-    prefix="/api/jwt",
-    tags=["jwt"]
-)
+route_jwt = APIRouter(prefix="/api/jwt", tags=["jwt"])
 
 
 @route_jwt.post("/refresh")

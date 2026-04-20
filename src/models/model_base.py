@@ -6,8 +6,7 @@ from src.database.config import settings
 
 class Base(DeclarativeBase):
     """base Class"""
+
     __abstract__ = True
 
-    metadata = MetaData(
-        naming_convention=settings.db.naming_convention
-    )
+    metadata = MetaData(naming_convention=settings.db.naming_convention)

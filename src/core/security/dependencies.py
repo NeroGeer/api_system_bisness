@@ -1,12 +1,11 @@
-from jose import jwt, JWTError
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 
-from src.repositories.crud.crud_user import get_user_by_id
-from src.database.database import SessionDep
 from src.database.config import settings
+from src.database.database import SessionDep
 from src.logger.logger import logger
-
+from src.repositories.crud.crud_user import get_user_by_id
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 
@@ -27,7 +26,9 @@ async def get_current_user(session: SessionDep, token: str = Depends(oauth2_sche
     """
     logger.debug("Attempting to decode access token")
     try:
-        payload = jwt.decode(token, settings.jwt.secret_key, algorithms=[settings.jwt.algorithm])
+        payload = jwt.decode(
+            token, settings.jwt.secret_key, algorithms=[settings.jwt.algorithm]
+        )
 
         logger.debug("Token successfully decoded")
 
@@ -43,7 +44,7 @@ async def get_current_user(session: SessionDep, token: str = Depends(oauth2_sche
         user_id = int(user_id)
         logger.debug(f"Token belongs to user_id={user_id}")
 
-    except JWTError:
+    except JWTError as e:
         logger.warning(f"JWT decode error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token, no have access")
 

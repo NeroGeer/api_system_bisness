@@ -1,7 +1,14 @@
+from src.admin.view_admin_panel.meeting_class_admin import (
+    MeetingAdmin,
+    MeetingParticipantAdmin,
+)
 from src.admin.view_admin_panel.task_class_admin import TaskAdmin, TaskCommentAdmin
-from src.admin.view_admin_panel.meeting_class_admin import MeetingAdmin, MeetingParticipantAdmin
-from src.admin.view_admin_panel.user_class_admin import UserAdmin, PermissionAdmin, RoleAdmin
-from src.admin.view_admin_panel.team_class_admin import TeamMemberAdmin, TeamAdmin
+from src.admin.view_admin_panel.team_class_admin import TeamAdmin, TeamMemberAdmin
+from src.admin.view_admin_panel.user_class_admin import (
+    PermissionAdmin,
+    RoleAdmin,
+    UserAdmin,
+)
 
 
 def setup_admin(admin):
