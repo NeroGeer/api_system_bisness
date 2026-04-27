@@ -68,7 +68,7 @@ app = FastAPI(lifespan=lifespan,
               contact={
                   "name": "NeroGeer",
                   "url": "https://github.com/NeroGeer",
-                  'email': "nerogeerjob@gmail.com",
+                  "email": "nerogeerjob@gmail.com",
               },
               )
 

@@ -2,7 +2,6 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from src.database.database import SessionDep
 from src.logger.logger import logger
 from src.models.model_team import Team, TeamMember
 from src.models.model_user import User
@@ -11,9 +10,10 @@ from src.scheme.schemas_team import (
     TeamRole,
     UpdateTeamMemberRoleSchema,
 )
+from src.core.context.base_context import BaseContext
 
 
-async def get_members_team(session: SessionDep, team_id: int):
+async def get_members_team(ctx: BaseContext):
     """
     Author: NeroGeer
     GitHub: https://github.com/NeroGeer
@@ -22,12 +22,19 @@ async def get_members_team(session: SessionDep, team_id: int):
     Returns all members of a team.
 
     Args:
-        session: DB session
-        team_id: Team ID
+        ctx: BaseContext
+        ctx.session: DB session
+        ctx.team_id: Team ID
 
     Returns:
         list[TeamMember]: team members with loaded user relation
     """
+
+    session = ctx.session
+    team_id = ctx.scope.team_id
+
+    await ctx.require_admin_or_team_role_or_executor(team_role={TeamRole.manager, TeamRole.employee})
+
     logger.info(f"Fetching members by team ID: {team_id}")
     stmt = (
         select(Team)
@@ -44,7 +51,7 @@ async def get_members_team(session: SessionDep, team_id: int):
 
 
 async def add_members_team(
-    team_id: int, data: AddTeamMemberSchema, session: SessionDep, user: User
+    ctx: BaseContext, data: AddTeamMemberSchema
 ):
     """
     Adds a user to a team.
@@ -53,10 +60,25 @@ async def add_members_team(
         - user must not already be in team
         - only admin can assign roles other than employee
         - default role is employee for non-admins
+
+    Args:
+        ctx: BaseContext
+        ctx.session: DB session
+        ctx.team_id: Team ID
+        data: AddTeamMemberSchema
+
     """
+
+    session = ctx.session
+    team_id = ctx.scope.team_id
+
+    await ctx.require_admin_or_team_role_or_executor()
+
+    if not await session.get(User, data.user_id):
+        raise HTTPException(status_code=400, detail=f"User {data.user_id} not Found")
+
     logger.debug(
-        f"Adding member: team_id={team_id}, user_id={data.user_id}, "
-        f"actor_user_id={user.id}"
+        f"Adding member: team_id={team_id}, user_id={data.user_id}"
     )
     existing = await session.scalar(
         select(TeamMember).where(
@@ -70,8 +92,7 @@ async def add_members_team(
         )
         raise HTTPException(status_code=400, detail="User already in team")
 
-    if not any(role.name == "admin" for role in user.roles):
-        data.role = TeamRole.employee
+    data.role = TeamRole.employee
 
     member = TeamMember(user_id=data.user_id, team_id=team_id, role=data.role)
 
@@ -87,16 +108,17 @@ async def add_members_team(
 
 
 async def update_member_role(
-    team_id: int, user_id: int, data: UpdateTeamMemberRoleSchema, session: SessionDep
+    ctx: BaseContext, data: UpdateTeamMemberRoleSchema,
 ):
     """
     Updates a team member role.
 
     Args:
-        team_id: Team identifier
-        user_id: Target user identifier
+        ctx: BaseContext
+        ctx.scope.team_id: Team identifier
+        ctx.scope.user_id: Target user identifier
+        ctx.session: Database session
         data: New role data
-        session: Database session
 
     Returns:
         TeamMember: Updated member entity
@@ -104,6 +126,16 @@ async def update_member_role(
     Raises:
         HTTPException: If member is not found
     """
+
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    user_id = ctx.scope.user_id
+
+    ctx.require_admin()
+
+    if not await session.get(User, user_id):
+        raise HTTPException(status_code=400, detail=f"User {user_id} not Found")
+
     logger.debug(
         f"Updating team member role: team_id={team_id}, user_id={user_id}, new_role={data.role}"
     )
@@ -133,7 +165,7 @@ async def update_member_role(
 
 
 async def delete_members_team(
-    team_id: int, user_id: int, session: SessionDep, user: User
+    ctx: BaseContext,
 ):
     """
     Removes a user from a team.
@@ -142,14 +174,27 @@ async def delete_members_team(
         - user cannot remove themselves
         - member must exist in team
 
+    Args:
+        ctx: BaseContext
+        ctx.scope.team_id: Team identifier
+        ctx.scope.user_id: Target user identifier
+        ctx.session: Database session
+
     Returns:
         dict: operation result implicitly via HTTP response
     """
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    user_id = ctx.scope.user_id
+
+    await ctx.require_admin_or_team_role_or_executor()
 
     logger.debug(
-        f"Deleting team member: team_id={team_id}, target_user_id={user_id}, actor_user_id={user.id}"
+        f"Deleting team member: team_id={team_id}, target_user_id={user_id}, "
+        f"actor_user_id={current_user.id}"
     )
-    if user.id == user_id:
+    if current_user.id == user_id:
         logger.warning(
             f"Self-removal attempt blocked: user_id={user_id}, team_id={team_id}"
         )

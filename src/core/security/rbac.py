@@ -1,8 +1,5 @@
-from typing import Annotated, Iterable
+from typing import Iterable
 
-from fastapi import Depends, HTTPException
-
-from src.core.security.dependencies import get_current_user
 from src.logger.logger import logger
 from src.models.model_user import User
 from src.scheme.schemas_user import UserRole
@@ -28,27 +25,6 @@ def has_role(user: User, roles: Iterable[UserRole]) -> bool:
     return bool(user_roles.intersection(roles))
 
 
-def require_role(roles: Iterable[UserRole]):
-    """
-    FastAPI dependency that restricts access based on user roles.
-
-    Args:
-        roles (Iterable[UserRole]): Required roles to access the endpoint.
-
-    Returns:
-        Callable: Dependency function that returns the current user if authorized.
-    """
-
-    async def checker(user: Annotated[User, Depends(get_current_user)]):
-        if not has_role(user, roles):
-            logger.warning(f"Access denied (role mismatch) for user_id={user.id}")
-            raise HTTPException(403, detail="Forbidden")
-        logger.debug(f"Access granted by role for user_id={user.id}")
-        return user
-
-    return checker
-
-
 def has_permission(user: User, permission: str) -> bool:
     """
     Checks whether a user has a specific permission via assigned roles.
@@ -60,37 +36,18 @@ def has_permission(user: User, permission: str) -> bool:
     Returns:
         bool: True if permission is found, otherwise False.
     """
-    result = any(
-        permission_obj.name == permission
-        for role in user.roles
-        for permission_obj in role.permissions
-    )
-    logger.debug(
-        f"Permission check for user_id={user.id}: "
-        f"permission={permission}, result={result}"
-    )
+    if not hasattr(user, "_permission_cache"):
+        user._permission_cache = {
+            perm.name
+            for role in user.roles
+            for perm in role.permissions
+        }
+
+    result = permission in user._permission_cache
+
+    if not result:
+        logger.debug(
+            f"user_id={user.id} missing permission={permission}"
+        )
+
     return result
-
-
-def require_permission(permission: str):
-    """
-    FastAPI dependency that restricts access based on a specific permission.
-
-    Args:
-        permission (str): Required permission name.
-
-    Returns:
-        Callable: Dependency function that returns the current user if authorized.
-    """
-
-    async def checker(user: Annotated[User, Depends(get_current_user)]):
-        if not has_permission(user, permission):
-            logger.warning(
-                f"Access denied (missing permission={permission}) "
-                f"for user_id={user.id}"
-            )
-            raise HTTPException(status_code=403, detail="Missing permission")
-        logger.debug(f"Access granted by permission={permission} for user_id={user.id}")
-        return user
-
-    return checker

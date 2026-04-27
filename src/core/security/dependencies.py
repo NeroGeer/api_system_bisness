@@ -1,11 +1,13 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.database.config import settings
 from src.database.database import SessionDep
 from src.logger.logger import logger
-from src.repositories.crud.crud_user import get_user_by_id
+from src.models.model_user import User, Role
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 
@@ -56,3 +58,36 @@ async def get_current_user(session: SessionDep, token: str = Depends(oauth2_sche
 
     logger.info(f"Authenticated user_id={user_id}")
     return user
+
+
+async def get_user_by_id(session: SessionDep, user_id: int) -> User | None:
+    """
+    Author: NeroGeer
+    GitHub: https://github.com/NeroGeer
+    License: MIT
+
+    Fetch user by ID.
+
+    Args:
+        session: DB session
+        user_id: user identifier
+
+    Returns:
+        User | None
+    """
+    logger.info(f"Fetching user by ID: {user_id}")
+    stmt = (
+        select(User)
+        .options(
+            selectinload(User.roles)
+            .selectinload(Role.permissions)
+        )
+        .where(User.id == user_id)
+    )
+
+    result = await session.scalar(stmt)
+    if result:
+        logger.debug(f"User found: {result.id} - {result.email}")
+    else:
+        logger.warning(f"No user found with ID: {user_id}")
+    return result

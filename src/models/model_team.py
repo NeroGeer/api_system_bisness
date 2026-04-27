@@ -65,7 +65,7 @@ class TeamMember(Base):
             Reference to the team.
 
         role (TeamRole):
-            Role of the user within the team (e.g. ADMIN, MEMBER).
+            Role of the user within the team (employee, manager).
 
         user (User):
             Relationship to the user entity.

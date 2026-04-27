@@ -3,13 +3,12 @@ import json
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from src.database.database import RedisDep, RedisKeys, SessionDep
+from src.database.database import RedisKeys, SessionDep
 from src.logger.logger import logger
 from src.models.model_tasks import Task, TaskComment
-from src.models.model_user import User
 from src.scheme.schemas_task import CommentCreateSchema, CommentSchema
 from src.scheme.schemas_team import TeamRole
-from src.services.task_service import require_admin_or_team_manager
+from src.core.context.base_context import BaseContext
 
 
 async def comment_stmt(
@@ -54,32 +53,36 @@ async def comment_stmt(
 
 
 async def get_task_comments(
-    current_user: User, team_id: int, task_id: int, session: SessionDep, redis: RedisDep
+    ctx: BaseContext
 ):
     """
     Retrieves all comments for a task with Redis caching.
 
     Args:
-        current_user (User): Authenticated user.
-        team_id (int): Team ID.
-        task_id (int): Task ID.
-        session (SessionDep): Database session.
-        redis (RedisDep): Redis client.
+        ctx: BaseContex
+        ctx.current_user (User): Authenticated user.
+        ctx.session (SessionDep): Database session.
+        ctx.redis (RedisDep): Redis client.
+        ctx.scope.team_id (int): Team ID.
+        ctx.scope.task_id (int): Task ID.
 
     Returns:
         list[CommentSchema]: List of task comments.
     """
+    current_user = ctx.current_user
+    session = ctx.session
+    redis = ctx.redis
+    team_id = ctx.scope.team_id
+    task_id = ctx.scope.task_id
 
     logger.debug(
         f"Fetching comments: user_id={current_user.id}, task_id={task_id}, team_id={team_id}"
     )
 
-    await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=team_id,
-        team_role={TeamRole.manager, TeamRole.employee},
-    )
+    await ctx.require_admin_or_team_role_or_executor(team_role={TeamRole.manager, TeamRole.employee})
+
+    if not await session.get(Task, task_id):
+        raise HTTPException(status_code=400, detail=f"Task {task_id} not Found")
 
     key = RedisKeys.TASK_COMMENTS.format(task_id=task_id)
     cached = await redis.get(key)
@@ -109,37 +112,35 @@ async def get_task_comments(
 
 
 async def add_task_comments(
-    task_id: int,
-    team_id: int,
-    current_user: User,
+    ctx: BaseContext,
     comment_data: CommentCreateSchema,
-    session: SessionDep,
-    redis: RedisDep,
 ):
     """
     Adds a new comment to a task.
 
     Args:
-        task_id (int): Task ID.
-        team_id (int): Team ID.
-        current_user (User): Authenticated user.
+        ctx: BaseContex
+        ctx.current_user (User): Authenticated user.
+        ctx.session (SessionDep): Database session.
+        ctx.redis (RedisDep): Redis client.
+        ctx.scope.task_id (int): Task ID.
         comment_data (CommentCreateSchema): Comment payload.
-        session (SessionDep): Database session.
-        redis (RedisDep): Redis client.
 
     Returns:
         TaskComment: Created comment.
     """
 
+    current_user = ctx.current_user
+    session = ctx.session
+    redis = ctx.redis
+    task_id = ctx.scope.task_id
+
     logger.debug(f"Adding comment: user_id={current_user.id}, task_id={task_id}")
 
-    await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=team_id,
-        check_executor=True,
-        task_id=task_id,
-    )
+    await ctx.require_admin_or_team_role_or_executor(check_executor=True)
+
+    if not await session.get(Task, task_id):
+        raise HTTPException(status_code=400, detail=f"Task {task_id} not Found")
 
     new_comment = TaskComment(
         task_id=task_id, user_id=current_user.id, text=comment_data.text
@@ -158,29 +159,33 @@ async def add_task_comments(
 
 
 async def update_comments_by_id(
-    comment_id: int,
-    task_id: int,
-    team_id: int,
-    current_user: User,
+    ctx: BaseContext,
     comment_data: CommentCreateSchema,
-    session: SessionDep,
-    redis: RedisDep,
 ):
     """
     Updates a comment if user is owner or has admin/team manager rights.
 
     Args:
-        comment_id (int): Comment ID.
-        task_id (int): Task ID.
-        team_id (int): Team ID.
-        current_user (User): Authenticated user.
+        ctx: BaseContex
+        ctx.current_user (User): Authenticated user.
+        ctx.session (SessionDep): Database session.
+        ctx.redis (RedisDep): Redis client.
+        ctx.scope.team_id (int): Team ID.
+        ctx.scope.task_id (int): Task ID.
+        ctx.scope.comment_id (int): Comment ID.
         comment_data (CommentCreateSchema): Updated data.
-        session (SessionDep): Database session.
-        redis (RedisDep): Redis client.
+
 
     Returns:
         TaskComment: Updated comment.
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    redis = ctx.redis
+    team_id = ctx.scope.team_id
+    task_id = ctx.scope.task_id
+    comment_id = ctx.scope.comment_id
 
     comment = await comment_stmt(
         session=session, team_id=team_id, task_id=task_id, comment_id=comment_id
@@ -190,9 +195,7 @@ async def update_comments_by_id(
         logger.debug(
             f"Non-owner update attempt: user_id={current_user.id}, comment_id={comment_id}"
         )
-        await require_admin_or_team_manager(
-            session=session, current_user=current_user, team_id=team_id
-        )
+        await ctx.require_admin_or_team_role_or_executor()
 
     comment.text = comment_data.text
 
@@ -208,27 +211,30 @@ async def update_comments_by_id(
 
 
 async def delete_comments_by_id(
-    comment_id: int,
-    task_id: int,
-    team_id: int,
-    current_user: User,
-    session: SessionDep,
-    redis: RedisDep,
+    ctx: BaseContext
 ):
     """
     Deletes a comment if user is owner or has admin/team manager rights.
 
     Args:
-        comment_id (int): Comment ID.
-        task_id (int): Task ID.
-        team_id (int): Team ID.
-        current_user (User): Authenticated user.
-        session (SessionDep): Database session.
-        redis (RedisDep): Redis client.
+        ctx: BaseContex
+        ctx.current_user (User): Authenticated user.
+        ctx.session (SessionDep): Database session.
+        ctx.redis (RedisDep): Redis client.
+        ctx.scope.team_id (int): Team ID.
+        ctx.scope.task_id (int): Task ID.
+        ctx.scope.comment_id (int): Comment ID.
 
     Returns:
         dict: Confirmation message.
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    redis = ctx.redis
+    team_id = ctx.scope.team_id
+    task_id = ctx.scope.task_id
+    comment_id = ctx.scope.comment_id
 
     comment = await comment_stmt(
         session=session, team_id=team_id, task_id=task_id, comment_id=comment_id
@@ -239,9 +245,7 @@ async def delete_comments_by_id(
             f"Non-owner delete attempt: user_id={current_user.id}, comment_id={comment_id}"
         )
 
-        await require_admin_or_team_manager(
-            session=session, current_user=current_user, team_id=team_id
-        )
+        await ctx.require_admin_or_team_role_or_executor()
 
     await session.delete(comment)
     await session.commit()

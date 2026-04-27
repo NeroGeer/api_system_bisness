@@ -9,17 +9,13 @@ class TeamRole(str, Enum):
     manager = "manager"
 
 
-class TeamRoleSchema(BaseModel):
-    role: Optional[str] = None
-
-
 class TeamSchema(BaseModel):
     id: int
     name: str
 
 
 class UpdateTeamMemberRoleSchema(BaseModel):
-    role: str
+    role: TeamRole
 
 
 class AddTeamMemberSchema(BaseModel):
@@ -38,10 +34,6 @@ class CurrentTeamSchema(BaseModel):
     id: int
     name: str
     role: Optional[str] = None
-
-
-class InviteTeamSchema(BaseModel):
-    invite_code: str
 
 
 class TeamUserShortSchema(BaseModel):

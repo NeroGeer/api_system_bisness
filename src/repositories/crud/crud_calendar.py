@@ -1,23 +1,18 @@
 from collections import defaultdict
-from datetime import date
 
 from sqlalchemy import select
 
-from src.database.database import SessionDep
 from src.logger.logger import logger
 from src.models.model_meeting import Meeting
 from src.models.model_tasks import Task
 from src.models.model_team import TeamMember
-from src.models.model_user import User
 from src.scheme.schemas_calendar import CalendarDaySchema, CalendarEventSchema
-from src.utils.utils import make_date_range
+from src.utils.utils import make_date_range, normalize_date_range
+from src.core.context.base_context import BaseContext, DateFilter
 
 
 async def get_calendar(
-    current_user: User,
-    session: SessionDep,
-    start_date: date | None = None,
-    end_date: date | None = None,
+        ctx: BaseContext[DateFilter]
 ):
     """
     Author: NeroGeer
@@ -31,33 +26,29 @@ async def get_calendar(
         - Groups them by day for calendar view
 
     Args:
-        current_user (User): Authenticated user.
-        session (SessionDep): Database session.
-        start_date (date | None): Start of date range.
-        end_date (date | None): End of date range.
+        ctx: BaseContext[DateFilter]
+        ctx.current_user (User): Authenticated user.
+        ctx.session (SessionDep): Database session.
+        ctx.filters.start_date (date | None): Start of date range.
+        ctx.filters.end_date (date | None): End of date range.
 
     Returns:
         list[CalendarDaySchema]: List of days with associated events.
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    start_date = ctx.filters.start_date
+    end_date = ctx.filters.end_date
+
+    start_date, end_date = await normalize_date_range(start_date=start_date, end_date=end_date)
 
     logger.debug(
         f"Building calendar for user_id={current_user.id}, "
         f"start_date={start_date}, end_date={end_date}"
     )
 
-    today = date.today()
-
-    if start_date is None and end_date is None:
-        start_date = today
-        end_date = today
-
-    elif start_date is None:
-        start_date = end_date
-
-    elif end_date is None:
-        end_date = start_date
-
-    start_dt, end_dt = make_date_range(start_date, end_date)
+    start_dt, end_dt = await make_date_range(start=start_date, end=end_date)
 
     logger.debug(f"Resolved datetime range: {start_dt} -> {end_dt}")
 

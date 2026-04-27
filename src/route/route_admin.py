@@ -2,9 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from src.core.security.rbac import require_permission
-from src.database.database import SessionDep
-from src.models.model_user import User
+from src.core.context.base_context import BaseContext, build_context_with_filters
 from src.repositories.crud import crud_admin as c_ad
 from src.scheme.schemas_admin import (
     AdminScheme,
@@ -20,19 +18,18 @@ route_admin = APIRouter(
 
 @route_admin.get("", status_code=200, response_model=AdminScheme)
 async def admin_panel(
-    current_user: Annotated[User, Depends(require_permission("admin.panel.access"))],
+    ctx: Annotated[BaseContext, Depends(build_context_with_filters())],
 ):
-
-    return current_user
+    ctx.require_permission(permission="admin.panel.access")
+    return ctx.current_user
 
 
 @route_admin.post(
     "/create-team", status_code=201, response_model=OutAdminTeamCrateSchema
 )
 async def admin_panel_create_team(
-    session: SessionDep,
-    current_user: Annotated[User, Depends(require_permission("admin.panel.access"))],
+    ctx: Annotated[BaseContext, Depends(build_context_with_filters())],
     data: AdminTeamCrateSchema,
 ):
-    result = await c_ad.create_team(session=session, data=data)
+    result = await c_ad.create_team(ctx=ctx, data=data)
     return result

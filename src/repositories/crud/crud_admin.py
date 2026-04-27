@@ -1,10 +1,10 @@
-from src.database.database import SessionDep
+from src.core.context.base_context import BaseContext
 from src.logger.logger import logger
 from src.models.model_team import Team
 from src.scheme.schemas_admin import AdminTeamCrateSchema
 
 
-async def create_team(session: SessionDep, data: AdminTeamCrateSchema) -> Team:
+async def create_team(ctx: BaseContext, data: AdminTeamCrateSchema) -> Team:
     """
     Author: NeroGeer
     GitHub: https://github.com/NeroGeer
@@ -13,7 +13,8 @@ async def create_team(session: SessionDep, data: AdminTeamCrateSchema) -> Team:
     Creates a new team in the system.
 
     Args:
-        session (SessionDep): Database session.
+        ctx: BaseContext
+        ctx.session: DB session
         data (AdminTeamCrateSchema): Input data for team creation.
 
     Returns:
@@ -22,12 +23,14 @@ async def create_team(session: SessionDep, data: AdminTeamCrateSchema) -> Team:
     Raises:
         IntegrityError: If team name or invite code violates uniqueness constraints.
     """
+    ctx.require_permission(permission="admin.panel.access")
+
     logger.info(f"Creating new team: {data.name}")
     new_team = Team(**data.model_dump())
 
-    session.add(new_team)
-    await session.commit()
-    await session.refresh(new_team)
+    ctx.session.add(new_team)
+    await ctx.session.commit()
+    await ctx.session.refresh(new_team)
 
     logger.debug(f"New team created with ID: {new_team.id}")
 

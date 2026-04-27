@@ -10,7 +10,7 @@ from src.core.security.rbac import has_permission
 from src.database.database import async_session, settings
 from src.logger.logger import logger
 from src.repositories.crud import crud_user as crud_u
-from src.repositories.crud.crud_user import get_user_by_id
+from src.core.security.dependencies import get_user_by_id
 from src.repositories.refresh_token_repo import delete_refresh_token
 
 

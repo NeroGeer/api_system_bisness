@@ -1,5 +1,3 @@
-from datetime import date
-
 from fastapi import HTTPException
 from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import selectinload
@@ -7,13 +5,12 @@ from sqlalchemy.orm import selectinload
 from src.database.database import SessionDep
 from src.logger.logger import logger
 from src.models.model_meeting import Meeting, MeetingParticipant
-from src.models.model_user import User
 from src.repositories.meeting_repository import check_meeting_conflicts
 from src.scheme.schemas_meeting import MeetingCreateSchema, MeetingUpdateSchema
 from src.scheme.schemas_team import TeamRole
 from src.services.meeting_service import validate_meeting_data
-from src.services.task_service import require_admin_or_team_manager
 from src.utils.utils import make_date_range
+from src.core.context.base_context import BaseContext, TaskFilter, MeetingFilter
 
 
 async def meeting_stmt(
@@ -53,14 +50,7 @@ async def meeting_stmt(
 
 
 async def get_meeting(
-    team_id: int,
-    current_user: User,
-    session: SessionDep,
-    meeting_id: int | None = None,
-    only_my_meetings: bool = False,
-    participant_user_id: int | None = None,
-    start_date: date | None = None,
-    end_date: date | None = None,
+    ctx: BaseContext[TaskFilter]
 ):
     """
     Retrieves meetings for a team with optional filters.
@@ -70,16 +60,35 @@ async def get_meeting(
         - date range filtering
         - filtering by participant
         - filtering by current user participation
+
+    Args:
+        ctx: BaseContext[TaskFilter]
+        ctx.current_user: Authenticated user
+        ctx.session: DB session
+        ctx.scope.team_id: Team ID
+        ctx.scope.meeting_id: Optional meeting ID (returns single task)
+        ctx.filters.only_my: Return only meetings assigned to current user
+        ctx.filters.executor_user_id: Filter by participant
+        ctx.filters.start_date: Start date filter
+        ctx.filters.end_date: End date filter
+
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    meeting_id = ctx.scope.meeting_id
+    only_my_meetings = ctx.filters.only_my
+    participant_user_id = ctx.filters.executor_user_id
+    start_date = ctx.filters.start_date
+    end_date = ctx.filters.end_date
 
     logger.debug(f"Fetching meetings: user_id={current_user.id}, team_id={team_id}")
 
-    await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=team_id,
-        team_role={TeamRole.manager, TeamRole.employee},
+    await ctx.require_admin_or_team_role_or_executor(
+        team_role={TeamRole.manager, TeamRole.employee}
     )
+
     stmt = (
         select(Meeting).where(Meeting.team_id == team_id).order_by(Meeting.start_time)
     )
@@ -125,10 +134,8 @@ async def get_meeting(
 
 
 async def create_meeting(
-    current_user: User,
-    session: SessionDep,
+    ctx: BaseContext,
     meeting_data: MeetingCreateSchema,
-    team_id: int,
 ):
     """
     Creates a new meeting and assigns participants.
@@ -137,12 +144,21 @@ async def create_meeting(
         - permission validation
         - participant validation
         - conflict checks (via service layer)
+
+    Args:
+        ctx: BaseContext
+        ctx.current_user: Authenticated user
+        ctx.session: DB session
+        ctx.scope.team_id: Team ID
+        meeting_data: MeetingCreateSchema
     """
 
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+
     logger.info(f"Create meeting: user_id={current_user.id}, team_id={team_id}")
-    result_perm = await require_admin_or_team_manager(
-        session=session, current_user=current_user, team_id=team_id
-    )
+    result_perm = await ctx.require_admin_or_team_role_or_executor()
 
     participants_set: set[int] = set(meeting_data.participants or [])
 
@@ -178,11 +194,8 @@ async def create_meeting(
 
 
 async def update_meeting(
-    current_user: User,
-    session: SessionDep,
-    meeting_id: int,
+    ctx: BaseContext,
     data: MeetingUpdateSchema,
-    team_id: int,
 ):
     """
     Updates meeting data including:
@@ -195,7 +208,20 @@ async def update_meeting(
         - permission check (admin / team manager / creator)
         - participant validation
         - time conflict validation
+
+    Args:
+        ctx: BaseContext
+        ctx.current_user: Authenticated user
+        ctx.session: DB session
+        ctx.scope.team_id: Team ID
+        ctx.scope.meeting_id: Meeting ID
+        data: MeetingUpdateSchema
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    meeting_id = ctx.scope.meeting_id
 
     logger.debug(
         f"Updating meeting: meeting_id={meeting_id}, user_id={current_user.id}"
@@ -207,11 +233,7 @@ async def update_meeting(
         session=session, meeting_id=meeting_id, team_id=team_id
     )
 
-    result_perm = await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=meeting.team_id,
-    )
+    result_perm = await ctx.require_admin_or_team_role_or_executor()
 
     if not result_perm.is_admin and meeting.creator_id != current_user.id:
         logger.warning(
@@ -277,25 +299,28 @@ async def update_meeting(
 
 
 async def delete_meeting_participant(
-    current_user: User,
-    session: SessionDep,
-    meeting_id: int,
-    team_id: int,
-    users_ids: list[int],
+    ctx: BaseContext[MeetingFilter]
 ):
     """
     Removes participants from a meeting.
 
     Args:
-        current_user (User): Authenticated user performing the action.
-        session (SessionDep): Database session.
-        meeting_id (int): Target meeting ID.
-        team_id (int): Team ID.
-        users_ids: list[int]: List of user IDs to remove.
+        ctx: BaseContext[MeetingFilter]
+        ctx.current_user: Authenticated user
+        ctx.session: DB session
+        ctx.scope.team_id: Team ID
+        ctx.scope.meeting_id: Meeting ID
+        ctx.filters.users_ids: list[int]: List of user IDs to remove.
 
     Returns:
         dict: Meeting ID and removed participants.
     """
+
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    meeting_id = ctx.scope.meeting_id
+    users_ids = ctx.filters.users_ids
 
     logger.debug(
         f"Removing participants: meeting_id={meeting_id}, user_id={current_user.id}"
@@ -307,11 +332,7 @@ async def delete_meeting_participant(
         session=session, meeting_id=meeting_id, team_id=team_id
     )
 
-    result_perm = await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=meeting.team_id,
-    )
+    result_perm = await ctx.require_admin_or_team_role_or_executor()
 
     if not result_perm.is_admin and meeting.creator_id != current_user.id:
         logger.warning(
@@ -347,30 +368,32 @@ async def delete_meeting_participant(
 
 
 async def delete_meeting_by_id(
-    team_id: int, current_user: User, session: SessionDep, meeting_id: int
+    ctx: BaseContext
 ):
     """
     Deletes a meeting and all related participants.
 
     Args:
-        team_id (int): Team ID.
-        current_user (User): Authenticated user.
-        session (SessionDep): Database session.
-        meeting_id (int): Meeting ID.
+        ctx: BaseContext[MeetingFilter]
+        ctx.current_user: Authenticated user
+        ctx.session: DB session
+        ctx.scope.team_id: Team ID
+        ctx.scope.meeting_id: Meeting ID
 
     Returns:
         dict: Confirmation message and deleted meeting info.
     """
 
+    current_user = ctx.current_user
+    session = ctx.session
+    team_id = ctx.scope.team_id
+    meeting_id = ctx.scope.meeting_id
+
     logger.debug(
         f"Deleting meeting: meeting_id={meeting_id}, user_id={current_user.id}"
     )
 
-    result_perm = await require_admin_or_team_manager(
-        session=session,
-        current_user=current_user,
-        team_id=team_id,
-    )
+    result_perm = await ctx.require_admin_or_team_role_or_executor()
 
     meeting = await meeting_stmt(
         session=session, meeting_id=meeting_id, team_id=team_id
