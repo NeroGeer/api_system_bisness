@@ -1,6 +1,7 @@
 import bcrypt
 
 from src.logger.logger import logger
+from src.exceptions.exceptions import InvalidCredentialsError
 
 
 def hash_password(password: str) -> str:
@@ -37,4 +38,4 @@ def verify_password(password: str, hashed: str) -> bool:
         return result
     except Exception as e:
         logger.warning(f"Password verification error: {e}")
-        return False
+        raise InvalidCredentialsError()

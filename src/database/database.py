@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from src.database.config import settings
 from src.logger.logger import logger
 
-DATABASE_URL: str = str(settings.db.url)  # "sqlite+aiosqlite:///./app.py.db"
+DATABASE_URL: str = str(settings.db.url)
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 logger.info(f"Async database engine created for {DATABASE_URL}")

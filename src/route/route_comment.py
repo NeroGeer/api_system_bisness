@@ -2,11 +2,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from src.repositories.crud import crud_comment as c_ct
+from src.services.comment_service import CommentService
+from src.repositories.comment_repository import CommentRepository
 from src.scheme.schemas_task import CommentCreateSchema, CommentSchema
 from src.core.context.base_context import (
     BaseContext,
-    build_context_with_filters
+    build_context_with_filters,
+    build_service
 )
 
 route_comment = APIRouter(
@@ -21,9 +23,10 @@ async def get_comment(
             Depends(build_context_with_filters())
         ],
 ):
-    return await c_ct.get_task_comments(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=CommentRepository,
+                              service_cls=CommentService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.get_task_comments()
 
 
 @route_comment.post("", status_code=201, response_model=CommentSchema)
@@ -34,10 +37,10 @@ async def add_comment(
         ],
         data: CommentCreateSchema,
 ):
-    return await c_ct.add_task_comments(
-        ctx=ctx,
-        comment_data=data,
-    )
+    serv_fact = build_service(repository_cls=CommentRepository,
+                              service_cls=CommentService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.add_comments(data=data)
 
 
 @route_comment.patch("/{comment_id}", status_code=200, response_model=CommentSchema)
@@ -48,10 +51,10 @@ async def update_comment_by_id(
         ],
         data: CommentCreateSchema,
 ):
-    return await c_ct.update_comments_by_id(
-        ctx=ctx,
-        comment_data=data,
-    )
+    serv_fact = build_service(repository_cls=CommentRepository,
+                              service_cls=CommentService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.update_comments(data=data)
 
 
 @route_comment.delete("/{comment_id}", status_code=204)
@@ -61,6 +64,7 @@ async def delete_comment_by_id(
             Depends(build_context_with_filters())
         ],
 ):
-    return await c_ct.delete_comments_by_id(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=CommentRepository,
+                              service_cls=CommentService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.delete_comments()

@@ -2,9 +2,11 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends
 
-from src.repositories.crud import crud_calendar as c_cl
 from src.scheme.schemas_calendar import CalendarDaySchema
-from src.core.context.base_context import BaseContext, build_context_with_filters, DateFilter
+from src.core.context.base_context import BaseContext, build_context_with_filters, DateFilter, build_service
+from src.services.calendar_service import CalendarService
+from src.repositories.calendar_repository import CalendarRepository
+
 
 route_calendar = APIRouter(
     prefix="/api/calendar",
@@ -16,6 +18,6 @@ route_calendar = APIRouter(
 async def get_calendar(
         ctx: Annotated[BaseContext[DateFilter], Depends(build_context_with_filters(DateFilter))]
 ):
-    return await c_cl.get_calendar(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=CalendarRepository, service_cls=CalendarService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.get_calendar()

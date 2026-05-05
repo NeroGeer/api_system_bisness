@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from src.repositories.crud import crud_meeting as c_me
+from src.repositories.meeting_repository import MeetingRepository
+from src.services.meeting_service import MeetingService
 from src.scheme.schemas_meeting import (
     MeetingCreateSchema,
     MeetingOutSchema,
@@ -12,7 +13,9 @@ from src.core.context.base_context import (
     BaseContext,
     build_context_with_filters,
     TaskFilter,
-    MeetingFilter)
+    MeetingFilter,
+    build_service
+)
 
 route_meeting = APIRouter(prefix="/api/teams/{team_id}/meeting", tags=["Meetings"])
 
@@ -24,9 +27,10 @@ async def get_meetings(
             Depends(build_context_with_filters(TaskFilter))
         ],
 ):
-    return await c_me.get_meeting(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.get_meetings_or_meeting_by_id()
 
 
 @route_meeting.get("/{meeting_id}", status_code=200, response_model=MeetingOutSchema)
@@ -36,9 +40,10 @@ async def get_meeting_by_id(
             Depends(build_context_with_filters(TaskFilter))
         ],
 ):
-    return await c_me.get_meeting(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.get_meetings_or_meeting_by_id()
 
 
 @route_meeting.post("", status_code=201, response_model=MeetingOutSchema)
@@ -49,9 +54,10 @@ async def create_meeting(
         ],
         data: MeetingCreateSchema,
 ):
-    return await c_me.create_meeting(
-        ctx=ctx, meeting_data=data,
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.create_meeting(data=data)
 
 
 @route_meeting.put("/{meeting_id}", status_code=200, response_model=MeetingOutSchema)
@@ -62,10 +68,10 @@ async def update_meeting_by_id(
         ],
         data: MeetingUpdateSchema,
 ):
-    return await c_me.update_meeting(
-        ctx=ctx,
-        data=data,
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.update_meeting(data=data)
 
 
 @route_meeting.delete("/{meeting_id}/participants", status_code=204)
@@ -75,9 +81,10 @@ async def delete_participant_by_meeting_id(
             Depends(build_context_with_filters(MeetingFilter))
         ],
 ):
-    return await c_me.delete_meeting_participant(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.delete_meeting_participant()
 
 
 @route_meeting.delete("/{meeting_id}", status_code=204)
@@ -87,6 +94,7 @@ async def delete_meeting_by_id(
             Depends(build_context_with_filters())
         ],
 ):
-    return await c_me.delete_meeting_by_id(
-        ctx=ctx
-    )
+    serv_fact = build_service(repository_cls=MeetingRepository,
+                              service_cls=MeetingService,
+                              session=ctx.session, ctx=ctx)
+    return await serv_fact.delete_meeting()

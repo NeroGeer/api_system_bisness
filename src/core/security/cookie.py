@@ -6,7 +6,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
+        secure=False,
         samesite="lax",
         max_age=60 * 60 * 24 * 7,  # 7 дней
     )

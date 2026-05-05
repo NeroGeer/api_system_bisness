@@ -2,17 +2,16 @@ from datetime import date
 from typing import Annotated, Generic, TypeVar, Type
 
 from pydantic import BaseModel, Field
-from fastapi import Depends, HTTPException
-from sqlalchemy import exists, select
+from fastapi import Depends
 
+from src.exceptions import exceptions as c_exp
 from src.models.model_user import User
 from src.database.database import SessionDep, RedisDep
 from src.core.security import dependencies as jwt
 from src.core.security.rbac import has_role, has_permission
-from src.models.model_tasks import Task
-from src.models.model_team import Team
 from src.models.model_user import PermissionResult
-from src.repositories.task_repository import has_team_role
+from src.core.context.context_service import ContextService
+from src.core.context.context_repository import ContextRepository
 from src.scheme.schemas_team import TeamRole
 from src.scheme.schemas_user import UserRole
 
@@ -26,11 +25,11 @@ class Scope(BaseModel):
 
 
 def build_scope(
-    team_id: int | None = None,
-    task_id: int | None = None,
-    user_id: int | None = None,
-    comment_id: int | None = None,
-    meeting_id: int | None = None,
+        team_id: int | None = None,
+        task_id: int | None = None,
+        user_id: int | None = None,
+        comment_id: int | None = None,
+        meeting_id: int | None = None,
 ) -> Scope:
     return Scope(
         team_id=team_id,
@@ -100,14 +99,11 @@ class BaseContext(Generic[F]):
                        - 403 if user has no required permissions
                """
         if not has_role(user=self.current_user, roles={UserRole.admin}):
-            raise HTTPException(
-                status_code=403,
-                detail="Forbidden",
-            )
+            raise c_exp.ForbiddenError()
 
     def require_permission(self,
-                                 permission: str
-                                 ):
+                           permission: str
+                           ):
         """
         FastAPI dependency that restricts access based on a specific permission.
 
@@ -117,7 +113,7 @@ class BaseContext(Generic[F]):
 
         """
         if not has_permission(user=self.current_user, permission=permission):
-            raise HTTPException(status_code=403, detail="Missing permission")
+            raise c_exp.PermissionDeniedError()
 
     async def require_admin_or_team_role_or_executor(
             self,
@@ -152,32 +148,29 @@ class BaseContext(Generic[F]):
                 - is_executor
 
         Raises:
-            HTTPException:
-                - 404 if team not found
-                - 422 if task_id missing when check_executor=True
-                - 403 if user has no required permissions
+            - 404 if team not found
+            - 422 if task_id missing when check_executor=True
+            - 403 if user has no required permissions
         """
 
         if self.scope is None or self.scope.team_id is None:
-            raise HTTPException(status_code=400, detail="team_id required")
+            raise c_exp.TeamRequiredError()
 
         team_id = self.scope.team_id
         task_id = self.scope.task_id
         user = self.current_user
 
+        serv_fact = build_service(repository_cls=ContextRepository,
+                                  service_cls=ContextService, session=self.session)
+
         check_roles: set[TeamRole] = team_role if team_role is not None else {TeamRole.manager}
 
-        team_exists = await self.session.scalar(
-            select(exists().where(Team.id == team_id))
-        )
-        if not team_exists:
-            raise HTTPException(status_code=404, detail="Team not found")
+        await serv_fact.get_team(team_id=team_id)
 
         is_admin = has_role(user=user, roles={UserRole.admin})
 
-        is_team_role = await has_team_role(
-            session=self.session,
-            user=user,
+        is_team_role = await serv_fact.has_team_role(
+            user=user.id,
             team_id=team_id,
             roles=check_roles,
         )
@@ -186,27 +179,12 @@ class BaseContext(Generic[F]):
 
         if check_executor:
             if task_id is None:
-                raise HTTPException(
-                    status_code=422, detail="task_id is required when check_executor=True"
-                )
+                raise c_exp.FilterContextError()
 
-            is_executor = bool(
-                await self.session.scalar(
-                    select(
-                        exists().where(
-                            Task.id == task_id,
-                            Task.team_id == team_id,
-                            Task.executor_user_id == user.id,
-                        )
-                    )
-                )
-            )
+            is_executor = await serv_fact.check_executor(user_id=user.id, team_id=team_id, task_id=task_id)
 
         if not (is_admin or is_team_role or is_executor):
-            raise HTTPException(
-                status_code=403,
-                detail="Forbidden",
-            )
+            raise c_exp.ForbiddenError()
 
         return PermissionResult(
             is_admin=is_admin,
@@ -232,3 +210,7 @@ def build_context_with_filters(filter_schema: Type[F] | None = None):
         )
 
     return _dependency
+
+
+def build_service(repository_cls, service_cls, session, ctx=None):
+    return service_cls(repository_cls(session=session), context=ctx)

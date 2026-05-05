@@ -45,9 +45,4 @@ def has_permission(user: User, permission: str) -> bool:
 
     result = permission in user._permission_cache
 
-    if not result:
-        logger.debug(
-            f"user_id={user.id} missing permission={permission}"
-        )
-
     return result

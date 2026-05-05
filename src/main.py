@@ -1,7 +1,7 @@
 # import uvicorn
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqladmin import Admin
 
 from src.admin.admin import setup_admin
@@ -17,6 +17,7 @@ from src.route.route_meeting import route_meeting
 from src.route.route_task import route_task
 from src.route.route_team import route_team
 from src.route.route_user import route_user
+from src.exceptions.exceptions import AppError
 
 
 # from starlette.staticfiles import StaticFiles
@@ -83,6 +84,14 @@ app.include_router(route_meeting)
 app.include_router(route_task)
 app.include_router(route_comment)
 app.include_router(route_calendar)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request, exc: AppError):
+    raise HTTPException(
+        status_code=exc.status_code,
+        detail=exc.detail
+    )
 
 # app.mount("/images", StaticFiles(directory="/usr/share/nginx/static/images"), name="images")
 

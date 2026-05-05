@@ -9,9 +9,13 @@ from src.core.security import jwt_token
 from src.core.security.rbac import has_permission
 from src.database.database import async_session, settings
 from src.logger.logger import logger
-from src.repositories.crud import crud_user as crud_u
 from src.core.security.dependencies import get_user_by_id
-from src.repositories.refresh_token_repo import delete_refresh_token
+
+from src.repositories.refresh_token_repository import RefreshTokenRepo
+from src.repositories.user_repository import UserRepository
+from src.services.refresh_token_service import RefreshTokenService
+from src.services.user_service import UserService
+from src.core.context.base_context import build_service
 
 
 class AdminAuth(AuthenticationBackend):
@@ -32,7 +36,8 @@ class AdminAuth(AuthenticationBackend):
             )
 
         async with async_session() as session:
-            user = await crud_u.get_user_by_email(session=session, email=email)
+            serv_fact = build_service(repository_cls=UserRepository, service_cls=UserService, session=session)
+            user = await serv_fact.get_user(email)
 
             if not user or not hsp.verify_password(password, user.hashed_password):
                 logger.warning(f"[ADMIN LOGIN] user not found email={email} or "
@@ -67,7 +72,9 @@ class AdminAuth(AuthenticationBackend):
 
         if refresh_token:
             async with async_session() as session:
-                await delete_refresh_token(session, refresh_token)
+                serv_token = build_service(service_cls=RefreshTokenService, repository_cls=RefreshTokenRepo,
+                                           session=session)
+                await serv_token.delete_refresh_token(token=refresh_token)
                 logger.info("[ADMIN LOGOUT] refresh token deleted")
 
         response = RedirectResponse(

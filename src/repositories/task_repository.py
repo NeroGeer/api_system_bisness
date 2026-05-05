@@ -1,71 +1,88 @@
-from typing import Iterable
+from sqlalchemy import select, exists, and_, func
+from datetime import date
 
-from sqlalchemy import exists, select
-
+from src.models.model_tasks import Task
 from src.database.database import SessionDep
-from src.logger.logger import logger
 from src.models.model_team import TeamMember
-from src.models.model_user import User
-from src.scheme.schemas_team import TeamRole
 
 
-async def validate_user_in_team(
-    session: SessionDep,
-    user_id: int,
-    team_id: int,
-) -> bool:
-    """
-    Checks whether a user is a member of a given team.
+class TaskRepository:
+    def __init__(self, session: SessionDep):
+        self.session = session
 
-    Args:
-        session (SessionDep): Database session.
-        user_id (int): User ID to check.
-        team_id (int): Team ID to check.
+    async def validate_team(
+            self,
+            user_id: int,
+            team_id: int,
+    ) -> bool:
 
-    Returns:
-        bool: True if user belongs to the team, otherwise False.
-    """
+        return await self.session.scalar(select(
+            exists().where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+        ))
 
-    logger.debug(f"Checking team membership: user_id={user_id}, team_id={team_id}")
-    stmt = select(
-        exists().where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
-    )
+    async def get(
+            self,
+            team_id: int,
+            executor_user_id: int | None = None,
+            start_dt: date | None = None,
+            end_dt: date | None = None,
+    ):
+        stmt = select(Task).where(Task.team_id == team_id)
 
-    return await session.scalar(stmt)
+        if start_dt is not None and end_dt is not None:
+            stmt = stmt.where(and_(Task.deadline >= start_dt, Task.deadline <= end_dt))
 
+        if executor_user_id is not None:
+            stmt = stmt.where(Task.executor_user_id == executor_user_id)
 
-async def has_team_role(
-    session: SessionDep, user: User, team_id: int, roles: Iterable[TeamRole]
-) -> bool:
-    """
-    Checks whether a user has one of the required roles in a specific team.
+        result = await self.session.execute(stmt)
 
-    Args:
-        session (SessionDep): Database session.
-        user (User): User instance.
-        team_id (int): Team ID.
-        roles (Iterable[TeamRole]): Allowed roles.
+        return result.scalars().all()
 
-    Returns:
-        bool: True if user has matching role, otherwise False.
-    """
+    async def get_task_id(self, task_id: int, team_id: int) -> Task | None:
 
-    logger.debug(
-        f"Checking team role: user_id={user.id}, team_id={team_id}, required_roles={[r.name for r in roles]}"
-    )
-    stmt = select(TeamMember.role).where(
-        TeamMember.user_id == user.id, TeamMember.team_id == team_id
-    )
-
-    role = await session.scalar(stmt)
-    if role is None:
-        logger.debug(f"No team role found: user_id={user.id}, team_id={team_id}")
-        return False
-
-    try:
-        return TeamRole(role) in roles
-    except ValueError:
-        logger.warning(
-            f"Invalid role value in DB: {role} for user_id={user.id}, team_id={team_id}"
+        return await self.session.scalar(
+            select(Task).where(
+                Task.id == task_id, Task.team_id == team_id
+            )
         )
-        return False
+
+    async def get_avg_grade(
+            self,
+            team_id: int,
+            user_id: int,
+            start_dt: date,
+            end_dt: date
+    ):
+
+        avg_grade = await self.session.scalar(
+            select(func.avg(Task.grade)).where(
+                Task.team_id == team_id,
+                Task.executor_user_id == user_id,
+                Task.close_date >= start_dt,
+                Task.close_date < end_dt,
+            ))
+
+        grade = avg_grade or 0.0
+        return {"grade": round(grade, 1)}
+
+    async def create(
+            self, data: Task
+    ):
+
+        self.session.add(data)
+        await self.session.commit()
+        await self.session.refresh(data)
+        return data
+
+    async def update(
+            self,
+            task: Task,
+    ):
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task
+
+    async def delete(self, task: Task) -> None:
+        await self.session.delete(task)
+        await self.session.commit()
